@@ -26,6 +26,7 @@ import org.apache.ignite.internal.util.OffheapReadWriteLock;
 import org.apache.ignite.internal.util.typedef.internal.SB;
 
 import java.nio.ByteBuffer;
+import org.jetbrains.annotations.Nullable;
 
 /**
  *
@@ -70,6 +71,10 @@ public class PageNoStoreImpl implements Page {
         buf = pageMem.wrapPointer(absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD, pageMem.pageSize());
     }
 
+    private long pointer() {
+        return absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD;
+    }
+
     /** {@inheritDoc} */
     @Override public long id() {
         return pageId;
@@ -86,6 +91,14 @@ public class PageNoStoreImpl implements Page {
             return reset(buf.asReadOnlyBuffer());
 
         return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public long getForReadPointer() {
+        if (pageMem.readLockPage(absPtr, PageIdUtils.tag(pageId)))
+            return pointer();
+
+        return 0L;
     }
 
     /** {@inheritDoc} */
@@ -107,8 +120,31 @@ public class PageNoStoreImpl implements Page {
     }
 
     /** {@inheritDoc} */
-    @Override public ByteBuffer tryGetForWrite() {
+    @Override public long getForWritePointer() {
         int tag =  noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS :  PageIdUtils.tag(pageId);
+        boolean locked = pageMem.writeLockPage(absPtr, tag);
+
+        if (!locked && !noTagCheck)
+            return 0L;
+
+        assert locked;
+
+        return pointer();
+    }
+
+    /** {@inheritDoc} */
+    @Override public long tryGetForWritePointer() {
+        int tag = noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS :  PageIdUtils.tag(pageId);
+
+        if (pageMem.tryWriteLockPage(absPtr, tag))
+            return pointer();
+
+        return 0L;
+    }
+
+    /** {@inheritDoc} */
+    @Override public ByteBuffer tryGetForWrite() {
+        int tag = noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS :  PageIdUtils.tag(pageId);
 
         if (pageMem.tryWriteLockPage(absPtr, tag))
             return reset(buf);
@@ -118,7 +154,7 @@ public class PageNoStoreImpl implements Page {
 
     /** {@inheritDoc} */
     @Override public void releaseWrite(boolean markDirty) {
-        long updatedPageId = PageIO.getPageId(buf);
+        long updatedPageId = PageIO.getPageId(pointer());
 
         pageMem.writeUnlockPage(absPtr, PageIdUtils.tag(updatedPageId));
     }

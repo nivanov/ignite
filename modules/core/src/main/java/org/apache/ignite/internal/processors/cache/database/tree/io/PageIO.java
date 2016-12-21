@@ -17,9 +17,9 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.pagemem.wal.IgniteWriteAheadLogManager;
 import org.apache.ignite.internal.processors.cache.IgniteCacheOffheapManagerImpl;
 import org.apache.ignite.internal.processors.cache.database.MetadataStorage;
@@ -36,10 +36,10 @@ import org.apache.ignite.internal.processors.cache.database.tree.util.PageLockLi
  * 1. IO should not have any `public static` methods.
  *    We have versioned IOs and any static method will mean that it have to always work in backward
  *    compatible way between all the IO versions. The base class {@link PageIO} has
- *    static methods (like {@code {@link #getPageId(ByteBuffer)}}) intentionally:
+ *    static methods (like {@code {@link #getPageId(long)}}) intentionally:
  *    this base format can not be changed between versions.
  *
- * 2. IO must correctly override {@link #initNewPage(ByteBuffer, long)} method and call super.
+ * 2. IO must correctly override {@link #initNewPage(long, long)} method and call super.
  *    We have logic that relies on this behavior.
  *
  * 3. Page IO type ID constant must be declared in this class to have a list of all the
@@ -166,16 +166,16 @@ public abstract class PageIO {
     /**
      * @return Page type.
      */
-    public static int getType(ByteBuffer buf) {
-        return buf.getShort(TYPE_OFF) & 0xFFFF;
+    public static int getType(long buf) {
+        return PageUtils.getShort(buf, TYPE_OFF) & 0xFFFF;
     }
 
     /**
      * @param buf Buffer.
      * @param type Type.
      */
-    public static void setType(ByteBuffer buf, int type) {
-        buf.putShort(TYPE_OFF, (short)type);
+    public static void setType(long buf, int type) {
+        PageUtils.putShort(buf, TYPE_OFF, (short)type);
 
         assert getType(buf) == type;
     }
@@ -184,16 +184,16 @@ public abstract class PageIO {
      * @param buf Buffer.
      * @return Version.
      */
-    public static int getVersion(ByteBuffer buf) {
-        return buf.getShort(VER_OFF) & 0xFFFF;
+    public static int getVersion(long buf) {
+        return PageUtils.getShort(buf, VER_OFF) & 0xFFFF;
     }
 
     /**
      * @param buf Buffer.
      * @param ver Version.
      */
-    public static void setVersion(ByteBuffer buf, int ver) {
-        buf.putShort(VER_OFF, (short)ver);
+    public static void setVersion(long buf, int ver) {
+        PageUtils.putShort(buf, VER_OFF, (short)ver);
 
         assert getVersion(buf) == ver;
     }
@@ -202,16 +202,16 @@ public abstract class PageIO {
      * @param buf Buffer.
      * @return Page ID.
      */
-    public static long getPageId(ByteBuffer buf) {
-        return buf.getLong(PAGE_ID_OFF);
+    public static long getPageId(long buf) {
+        return PageUtils.getLong(buf, PAGE_ID_OFF);
     }
 
     /**
      * @param buf Buffer.
      * @param pageId Page ID.
      */
-    public static void setPageId(ByteBuffer buf, long pageId) {
-        buf.putLong(PAGE_ID_OFF, pageId);
+    public static void setPageId(long buf, long pageId) {
+        PageUtils.putLong(buf, PAGE_ID_OFF, pageId);
 
         assert getPageId(buf) == pageId;
     }
@@ -220,16 +220,16 @@ public abstract class PageIO {
      * @param buf Buffer.
      * @return Checksum.
      */
-    public static int getCrc(ByteBuffer buf) {
-        return buf.getInt(CRC_OFF);
+    public static int getCrc(long buf) {
+        return PageUtils.getInt(buf, CRC_OFF);
     }
 
     /**
      * @param buf Buffer.
      * @param crc Checksum.
      */
-    public static void setCrc(ByteBuffer buf, int crc) {
-        buf.putInt(CRC_OFF, crc);
+    public static void setCrc(long buf, int crc) {
+        PageUtils.putInt(buf, CRC_OFF, crc);
     }
 
     /**
@@ -275,15 +275,15 @@ public abstract class PageIO {
      * @param buf Buffer.
      * @param pageId Page ID.
      */
-    public void initNewPage(ByteBuffer buf, long pageId) {
+    public void initNewPage(long buf, long pageId) {
         setType(buf, getType());
         setVersion(buf, getVersion());
         setPageId(buf, pageId);
         setCrc(buf, 0);
 
-        buf.putLong(RESERVED_1_OFF, 0L);
-        buf.putLong(RESERVED_2_OFF, 0L);
-        buf.putLong(RESERVED_3_OFF, 0L);
+        PageUtils.putLong(buf, RESERVED_1_OFF, 0L);
+        PageUtils.putLong(buf, RESERVED_2_OFF, 0L);
+        PageUtils.putLong(buf, RESERVED_3_OFF, 0L);
     }
 
     /** {@inheritDoc} */
@@ -296,7 +296,7 @@ public abstract class PageIO {
      * @return IO.
      * @throws IgniteCheckedException If failed.
      */
-    public static <Q extends PageIO> Q getPageIO(ByteBuffer buf) throws IgniteCheckedException {
+    public static <Q extends PageIO> Q getPageIO(long buf) throws IgniteCheckedException {
         int type = getType(buf);
         int ver = getVersion(buf);
 
@@ -343,7 +343,7 @@ public abstract class PageIO {
      * @return IO for either inner or leaf B+Tree page.
      * @throws IgniteCheckedException If failed.
      */
-    public static <Q extends BPlusIO<?>> Q getBPlusIO(ByteBuffer buf) throws IgniteCheckedException {
+    public static <Q extends BPlusIO<?>> Q getBPlusIO(long buf) throws IgniteCheckedException {
         int type = getType(buf);
         int ver = getVersion(buf);
 

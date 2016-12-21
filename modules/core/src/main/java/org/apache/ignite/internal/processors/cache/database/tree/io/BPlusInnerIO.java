@@ -17,8 +17,8 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.database.tree.util.PageHandler;
 
 /**
@@ -45,11 +45,11 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
     }
 
     /** {@inheritDoc} */
-    @Override public int getMaxCount(ByteBuffer buf) {
+    @Override public int getMaxCount(int pageSize, long buf) {
         // The structure of the page is the following:
         // |ITEMS_OFF|w|A|x|B|y|C|z|
         // where capital letters are data items, lowercase letters are 8 byte page references.
-        return (buf.capacity() - ITEMS_OFF - 8) / (itemSize + 8);
+        return (pageSize - ITEMS_OFF - 8) / (itemSize + 8);
     }
 
     /**
@@ -57,8 +57,8 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @param idx Index.
      * @return Page ID.
      */
-    public final long getLeft(ByteBuffer buf, int idx) {
-        return buf.getLong(offset(idx, SHIFT_LEFT));
+    public final long getLeft(long buf, int idx) {
+        return PageUtils.getLong(buf, (offset(idx, SHIFT_LEFT)));
     }
 
     /**
@@ -66,8 +66,8 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @param idx Index.
      * @param pageId Page ID.
      */
-    public final void setLeft(ByteBuffer buf, int idx, long pageId) {
-        buf.putLong(offset(idx, SHIFT_LEFT), pageId);
+    public final void setLeft(long buf, int idx, long pageId) {
+        PageUtils.putLong(buf, offset(idx, SHIFT_LEFT), pageId);
 
         assert pageId == getLeft(buf, idx);
     }
@@ -77,8 +77,8 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @param idx Index.
      * @return Page ID.
      */
-    public final long getRight(ByteBuffer buf, int idx) {
-        return buf.getLong(offset(idx, SHIFT_RIGHT));
+    public final long getRight(long buf, int idx) {
+        return PageUtils.getLong(buf, offset(idx, SHIFT_RIGHT));
     }
 
     /**
@@ -86,14 +86,14 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @param idx Index.
      * @param pageId Page ID.
      */
-    public final void setRight(ByteBuffer buf, int idx, long pageId) {
-        buf.putLong(offset(idx, SHIFT_RIGHT), pageId);
+    public final void setRight(long buf, int idx, long pageId) {
+        PageUtils.putLong(buf, offset(idx, SHIFT_RIGHT), pageId);
 
         assert pageId == getRight(buf, idx);
     }
 
     /** {@inheritDoc} */
-    @Override public final void copyItems(ByteBuffer src, ByteBuffer dst, int srcIdx, int dstIdx, int cnt,
+    @Override public final void copyItems(long src, long dst, int srcIdx, int dstIdx, int cnt,
         boolean cpLeft) throws IgniteCheckedException {
         assert srcIdx != dstIdx || src != dst;
 
@@ -103,11 +103,11 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
             PageHandler.copyMemory(src, dst, offset(srcIdx), offset(dstIdx), cnt);
 
             if (cpLeft)
-                dst.putLong(offset(dstIdx, SHIFT_LEFT), src.getLong(offset(srcIdx, SHIFT_LEFT)));
+                PageUtils.putLong(dst, offset(dstIdx, SHIFT_LEFT), PageUtils.getLong(src, (offset(srcIdx, SHIFT_LEFT))));
         }
         else {
             if (cpLeft)
-                dst.putLong(offset(dstIdx, SHIFT_LEFT), src.getLong(offset(srcIdx, SHIFT_LEFT)));
+                PageUtils.putLong(dst, offset(dstIdx, SHIFT_LEFT), PageUtils.getLong(src, (offset(srcIdx, SHIFT_LEFT))));
 
             PageHandler.copyMemory(src, dst, offset(srcIdx), offset(dstIdx), cnt);
         }
@@ -131,7 +131,7 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
 
     /** {@inheritDoc} */
     @Override public void insert(
-        ByteBuffer buf,
+        long buf,
         int idx,
         L row,
         byte[] rowBytes,
@@ -152,7 +152,7 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @throws IgniteCheckedException If failed.
      */
     public void initNewRoot(
-        ByteBuffer newRootBuf,
+        long newRootBuf,
         long newRootId,
         long leftChildId,
         L row,

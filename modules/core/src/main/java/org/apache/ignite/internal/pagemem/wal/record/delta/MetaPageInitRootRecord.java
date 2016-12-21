@@ -44,7 +44,7 @@ public class MetaPageInitRootRecord extends PageDeltaRecord {
         throws IgniteCheckedException {
         BPlusMetaIO io = BPlusMetaIO.VERSIONS.forPage(buf);
 
-        io.initRoot(buf, rootId);
+        io.initRoot(0, buf, rootId);
     }
 
     /** {@inheritDoc} */

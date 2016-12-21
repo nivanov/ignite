@@ -133,7 +133,7 @@ public abstract class DataStructure implements PageLockListener {
      * @param page Page.
      * @return Buffer.
      */
-    protected final ByteBuffer tryWriteLock(Page page) {
+    protected final long tryWriteLock(Page page) {
         return PageHandler.writeLock(page, this, true);
     }
 
@@ -142,7 +142,7 @@ public abstract class DataStructure implements PageLockListener {
      * @param page Page.
      * @return Buffer.
      */
-    protected final ByteBuffer writeLock(Page page) {
+    protected final long writeLock(Page page) {
         return PageHandler.writeLock(page, this, false);
     }
 
@@ -151,7 +151,7 @@ public abstract class DataStructure implements PageLockListener {
      * @param buf Buffer.
      * @param dirty Dirty page.
      */
-    protected final void writeUnlock(Page page, ByteBuffer buf, boolean dirty) {
+    protected final void writeUnlock(Page page, long buf, boolean dirty) {
         PageHandler.writeUnlock(page, buf, this, dirty);
     }
 
@@ -159,7 +159,7 @@ public abstract class DataStructure implements PageLockListener {
      * @param page Page.
      * @return Buffer.
      */
-    protected final ByteBuffer readLock(Page page) {
+    protected final long readLock(Page page) {
         return PageHandler.readLock(page, this);
     }
 
@@ -167,7 +167,7 @@ public abstract class DataStructure implements PageLockListener {
      * @param page Page.
      * @param buf Buffer.
      */
-    protected final void readUnlock(Page page, ByteBuffer buf) {
+    protected final void readUnlock(Page page, long buf) {
         PageHandler.readUnlock(page, buf, this);
     }
 
@@ -177,12 +177,12 @@ public abstract class DataStructure implements PageLockListener {
     }
 
     /** {@inheritDoc} */
-    @Override public void onWriteLock(Page page, ByteBuffer buf) {
+    @Override public void onWriteLock(Page page, long buf) {
         // No-op.
     }
 
     /** {@inheritDoc} */
-    @Override public void onWriteUnlock(Page page, ByteBuffer buf) {
+    @Override public void onWriteUnlock(Page page, long buf) {
         // No-op.
     }
 
@@ -192,12 +192,12 @@ public abstract class DataStructure implements PageLockListener {
     }
 
     /** {@inheritDoc} */
-    @Override public void onReadLock(Page page, ByteBuffer buf) {
+    @Override public void onReadLock(Page page, long buf) {
         // No-op.
     }
 
     /** {@inheritDoc} */
-    @Override public void onReadUnlock(Page page, ByteBuffer buf) {
+    @Override public void onReadUnlock(Page page, long buf) {
         // No-op.
     }
 }

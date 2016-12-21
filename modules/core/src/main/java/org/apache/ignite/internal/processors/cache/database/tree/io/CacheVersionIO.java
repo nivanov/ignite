@@ -17,8 +17,8 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
 
 /**
@@ -58,21 +58,21 @@ public class CacheVersionIO {
      * @param ver Version to write.
      * @param allowNull Is {@code null} version allowed.
      */
-    public static void write(ByteBuffer buf, GridCacheVersion ver, boolean allowNull) {
+    public static void write(long buf, GridCacheVersion ver, boolean allowNull) {
         if (ver == null) {
             if (allowNull)
-                buf.put(NULL_PROTO_VER);
+                PageUtils.putByte(buf, 0, NULL_PROTO_VER);
             else
                 throw new IllegalStateException("Cache version is null");
         }
         else {
             byte protoVer = 1; // Version of serialization protocol.
 
-            buf.put(protoVer);
-            buf.putInt(ver.topologyVersion());
-            buf.putInt(ver.nodeOrderAndDrIdRaw());
-            buf.putLong(ver.globalTime());
-            buf.putLong(ver.order());
+            PageUtils.putByte(buf, 0, protoVer);
+            PageUtils.putInt(buf, 1, ver.topologyVersion());
+            PageUtils.putInt(buf, 5, ver.nodeOrderAndDrIdRaw());
+            PageUtils.putLong(buf, 9, ver.globalTime());
+            PageUtils.putLong(buf, 17, ver.order());
         }
     }
 
@@ -102,8 +102,8 @@ public class CacheVersionIO {
      * @return Size of serialized version.
      * @throws IgniteCheckedException If failed.
      */
-    public static int readSize(ByteBuffer buf, boolean allowNull) throws IgniteCheckedException {
-        byte protoVer = checkProtocolVersion(buf.get(buf.position()), allowNull);
+    public static int readSize(long buf, boolean allowNull) throws IgniteCheckedException {
+        byte protoVer = checkProtocolVersion(PageUtils.getByte(buf, 0), allowNull);
 
         switch (protoVer) {
             case NULL_PROTO_VER:
@@ -126,16 +126,16 @@ public class CacheVersionIO {
      * @return Version.
      * @throws IgniteCheckedException If failed.
      */
-    public static GridCacheVersion read(ByteBuffer buf, boolean allowNull) throws IgniteCheckedException {
-        byte protoVer = checkProtocolVersion(buf.get(), allowNull);
+    public static GridCacheVersion read(long buf, boolean allowNull) throws IgniteCheckedException {
+        byte protoVer = checkProtocolVersion(PageUtils.getByte(buf, 0), allowNull);
 
         if (protoVer == NULL_PROTO_VER)
             return null;
 
-        int topVer = buf.getInt();
-        int nodeOrderDrId = buf.getInt();
-        long globalTime = buf.getLong();
-        long order = buf.getLong();
+        int topVer = PageUtils.getInt(buf, 1);
+        int nodeOrderDrId = PageUtils.getInt(buf, 5);
+        long globalTime = PageUtils.getLong(buf, 9);
+        long order = PageUtils.getLong(buf, 17);
 
         return new GridCacheVersion(topVer, nodeOrderDrId, globalTime, order);
     }

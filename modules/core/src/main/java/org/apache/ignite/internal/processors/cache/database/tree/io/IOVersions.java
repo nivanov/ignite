@@ -17,8 +17,6 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
-import java.nio.ByteBuffer;
-
 /**
  * Registry for IO versions.
  */
@@ -83,7 +81,7 @@ public final class IOVersions<V extends PageIO> {
      * @param buf Buffer.
      * @return IO.
      */
-    public V forPage(ByteBuffer buf) {
+    public V forPage(long buf) {
         int ver = PageIO.getVersion(buf);
 
         V res = forVersion(ver);

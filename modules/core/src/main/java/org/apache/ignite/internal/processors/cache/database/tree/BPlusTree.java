@@ -409,7 +409,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
             // We may need to replace inner key or want to merge this leaf with sibling after the remove -> keep lock.
             if (needReplaceInner ||
                 // We need to make sure that we have back or forward to be able to merge.
-                ((r.fwdId != 0 || r.backId != 0) && mayMerge(cnt - 1, io.getMaxCount(buf)))) {
+                ((r.fwdId != 0 || r.backId != 0) && mayMerge(cnt - 1, io.getMaxCount(pageMem.pageSize(), buf)))) {
                 // If we have backId then we've already locked back page, nothing to do here.
                 if (r.fwdId != 0 && r.backId == 0) {
                     Result res = r.lockForward(0);
@@ -528,7 +528,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
 
             assert lvl == io.getRootLevel(buf); // Can drop only root.
 
-            io.cutRoot(buf);
+            io.cutRoot(pageMem.pageSize(), buf);
 
             if (needWalDeltaRecord(meta))
                 wal.log(new MetaPageCutRootRecord(cacheId, meta.id()));
@@ -548,7 +548,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
 
             assert lvl == io.getLevelsCount(buf);
 
-            io.addRoot(buf, rootPageId);
+            io.addRoot(pageMem.pageSize(), buf, rootPageId);
 
             if (needWalDeltaRecord(meta))
                 wal.log(new MetaPageAddRootRecord(cacheId, meta.id(), rootPageId));
@@ -566,7 +566,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
             // Safe cast because we should never recycle meta page until the tree is destroyed.
             BPlusMetaIO io = (BPlusMetaIO)iox;
 
-            io.initRoot(buf, rootId);
+            io.initRoot(pageMem.pageSize(), buf, rootId);
 
             if (needWalDeltaRecord(meta))
                 wal.log(new MetaPageInitRootRecord(cacheId, meta.id(), rootId));
@@ -2185,7 +2185,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
          */
         private L insert(Page page, BPlusIO<L> io, ByteBuffer buf, int idx, int lvl)
             throws IgniteCheckedException {
-            int maxCnt = io.getMaxCount(buf);
+            int maxCnt = io.getMaxCount(pageMem.pageSize(), buf);
             int cnt = io.getCount(buf);
 
             if (cnt == maxCnt) // Need to split page.
@@ -2625,7 +2625,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
                         // Exit: we are done.
                     }
                     else if (tail.sibling != null &&
-                        tail.getCount() + tail.sibling.getCount() < tail.io.getMaxCount(tail.buf)) {
+                        tail.getCount() + tail.sibling.getCount() < tail.io.getMaxCount(pageMem.pageSize(), tail.buf)) {
                         // Release everything lower than tail, we've already merged this path.
                         doReleaseTail(tail.down);
                         tail.down = null;
@@ -2940,7 +2940,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure {
 
             boolean emptyBranch = needMergeEmptyBranch == TRUE || needMergeEmptyBranch == READY;
 
-            if (!left.io.merge(prnt.io, prnt.buf, prntIdx, left.buf, right.buf, emptyBranch))
+            if (!left.io.merge(pageMem.pageSize(), prnt.io, prnt.buf, prntIdx, left.buf, right.buf, emptyBranch))
                 return false;
 
             // Invalidate indexes after successful merge.

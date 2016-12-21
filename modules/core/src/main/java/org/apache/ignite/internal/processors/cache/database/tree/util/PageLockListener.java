@@ -33,13 +33,13 @@ public interface PageLockListener {
      * @param page Page.
      * @param buf Buffer or {@code null} if attempt to lock failed.
      */
-    public void onWriteLock(Page page, ByteBuffer buf);
+    public void onWriteLock(Page page, long buf);
 
     /**
      * @param page Page.
      * @param buf Buffer.
      */
-    public void onWriteUnlock(Page page, ByteBuffer buf);
+    public void onWriteUnlock(Page page, long buf);
 
     /**
      * @param page Page.
@@ -50,11 +50,11 @@ public interface PageLockListener {
      * @param page Page.
      * @param buf Buffer or {@code null} if attempt to lock failed.
      */
-    public void onReadLock(Page page, ByteBuffer buf);
+    public void onReadLock(Page page, long buf);
 
     /**
      * @param page Page.
      * @param buf Buffer.
      */
-    public void onReadUnlock(Page page, ByteBuffer buf);
+    public void onReadUnlock(Page page, long buf);
 }

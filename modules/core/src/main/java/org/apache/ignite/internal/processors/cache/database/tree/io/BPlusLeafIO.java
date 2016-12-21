@@ -35,12 +35,12 @@ public abstract class BPlusLeafIO<L> extends BPlusIO<L> {
     }
 
     /** {@inheritDoc} */
-    @Override public int getMaxCount(ByteBuffer buf) {
-        return (buf.capacity() - ITEMS_OFF) / itemSize;
+    @Override public int getMaxCount(int pageSize, long buf) {
+        return (pageSize - ITEMS_OFF) / itemSize;
     }
 
     /** {@inheritDoc} */
-    @Override public final void copyItems(ByteBuffer src, ByteBuffer dst, int srcIdx, int dstIdx, int cnt,
+    @Override public final void copyItems(long src, long dst, int srcIdx, int dstIdx, int cnt,
         boolean cpLeft) throws IgniteCheckedException {
         assert srcIdx != dstIdx || src != dst;
 

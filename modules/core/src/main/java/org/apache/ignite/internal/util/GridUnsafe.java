@@ -44,7 +44,7 @@ import sun.misc.Unsafe;
  */
 public abstract class GridUnsafe {
     /** Unsafe. */
-    private static final Unsafe UNSAFE = unsafe();
+    public static final Unsafe UNSAFE = unsafe();
 
     /** Unaligned flag. */
     private static final boolean UNALIGNED = unaligned();

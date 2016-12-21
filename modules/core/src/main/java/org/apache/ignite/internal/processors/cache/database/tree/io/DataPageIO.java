@@ -17,12 +17,12 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.database.CacheDataRow;
 import org.apache.ignite.internal.processors.cache.database.tree.util.PageHandler;
@@ -109,16 +109,16 @@ public class DataPageIO extends PageIO {
      * @param buf Byte buffer.
      * @param freeListPageId Free list page ID.
      */
-    public void setFreeListPageId(ByteBuffer buf, long freeListPageId) {
-        buf.putLong(FREE_LIST_PAGE_ID_OFF, freeListPageId);
+    public void setFreeListPageId(long buf, long freeListPageId) {
+        PageUtils.putLong(buf, FREE_LIST_PAGE_ID_OFF, freeListPageId);
     }
 
     /**
      * @param buf Byte buffer.
      * @return Free list page ID.
      */
-    public long getFreeListPageId(ByteBuffer buf) {
-        return buf.getLong(FREE_LIST_PAGE_ID_OFF);
+    public long getFreeListPageId(long buf) {
+        return PageUtils.getLong(buf, FREE_LIST_PAGE_ID_OFF);
     }
 
     /**
@@ -213,7 +213,7 @@ public class DataPageIO extends PageIO {
     /**
      * @return {@code true} If there is no useful data in this page.
      */
-    public boolean isEmpty(ByteBuffer buf) {
+    public boolean isEmpty(long buf) {
         return getDirectCount(buf) == 0;
     }
 
@@ -241,8 +241,8 @@ public class DataPageIO extends PageIO {
      * @param buf Buffer.
      * @return Direct count.
      */
-    private int getDirectCount(ByteBuffer buf) {
-        return buf.get(DIRECT_CNT_OFF) & 0xFF;
+    private int getDirectCount(long buf) {
+        return PageUtils.getByte(buf, DIRECT_CNT_OFF) & 0xFF;
     }
 
     /**

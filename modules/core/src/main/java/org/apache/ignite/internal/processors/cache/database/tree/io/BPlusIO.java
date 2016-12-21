@@ -17,8 +17,8 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.database.tree.BPlusTree;
 
 /**
@@ -72,7 +72,7 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(ByteBuffer buf, long pageId) {
+    @Override public void initNewPage(long buf, long pageId) {
         super.initNewPage(buf, pageId);
 
         setCount(buf, 0);
@@ -84,16 +84,16 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param buf Buffer.
      * @return Forward page ID.
      */
-    public final long getForward(ByteBuffer buf) {
-        return buf.getLong(FORWARD_OFF);
+    public final long getForward(long buf) {
+        return PageUtils.getLong(buf, FORWARD_OFF);
     }
 
     /**
      * @param buf Buffer.
      * @param pageId Forward page ID.
      */
-    public final void setForward(ByteBuffer buf, long pageId) {
-        buf.putLong(FORWARD_OFF, pageId);
+    public final void setForward(long buf, long pageId) {
+        PageUtils.putLong(buf, FORWARD_OFF, pageId);
 
         assert getForward(buf) == pageId;
     }
@@ -102,16 +102,16 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param buf Buffer.
      * @return Remove ID.
      */
-    public final long getRemoveId(ByteBuffer buf) {
-        return buf.getLong(REMOVE_ID_OFF);
+    public final long getRemoveId(long buf) {
+        return PageUtils.getLong(buf, REMOVE_ID_OFF);
     }
 
     /**
      * @param buf Buffer.
      * @param rmvId Remove ID.
      */
-    public final void setRemoveId(ByteBuffer buf, long rmvId) {
-        buf.putLong(REMOVE_ID_OFF, rmvId);
+    public final void setRemoveId(long buf, long rmvId) {
+        PageUtils.putLong(buf, REMOVE_ID_OFF, rmvId);
 
         assert getRemoveId(buf) == rmvId;
     }
@@ -120,8 +120,8 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param buf Buffer.
      * @return Items count in the page.
      */
-    public final int getCount(ByteBuffer buf) {
-        int cnt = buf.getShort(CNT_OFF) & 0xFFFF;
+    public final int getCount(long buf) {
+        int cnt = PageUtils.getShort(buf, CNT_OFF) & 0xFFFF;
 
         assert cnt >= 0: cnt;
 
@@ -132,17 +132,17 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param buf Buffer.
      * @param cnt Count.
      */
-    public final void setCount(ByteBuffer buf, int cnt) {
+    public final void setCount(long buf, int cnt) {
         assert cnt >= 0: cnt;
 
-        buf.putShort(CNT_OFF, (short)cnt);
+        PageUtils.putShort(buf, CNT_OFF, (short)cnt);
 
         assert getCount(buf) == cnt;
     }
 
     /**
      * @return {@code true} If we can get the full row from this page using
-     * method {@link BPlusTree#getRow(BPlusIO, ByteBuffer, int)}.
+     * method {@link BPlusTree#getRow(BPlusIO, long, int)}.
      * Must always be {@code true} for leaf pages.
      */
     public final boolean canGetRow() {
@@ -160,7 +160,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param buf Buffer.
      * @return Max items count.
      */
-    public abstract int getMaxCount(ByteBuffer buf);
+    public abstract int getMaxCount(int pageSize, long buf);
 
     /**
      * Store the needed info about the row in the page. Leaf and inner pages can store different info.
@@ -171,7 +171,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param rowBytes Row bytes.
      * @throws IgniteCheckedException If failed.
      */
-    public final void store(ByteBuffer buf, int idx, L row, byte[] rowBytes) throws IgniteCheckedException {
+    public final void store(long buf, int idx, L row, byte[] rowBytes) throws IgniteCheckedException {
         int off = offset(idx);
 
         if (rowBytes == null)
@@ -194,7 +194,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param row Lookup or full row.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void storeByOffset(ByteBuffer buf, int off, L row) throws IgniteCheckedException;
+    public abstract void storeByOffset(long buf, int off, L row) throws IgniteCheckedException;
 
     /**
      * Store row info from the given source.
@@ -206,7 +206,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param srcIdx Source index.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void store(ByteBuffer dst, int dstIdx, BPlusIO<L> srcIo, ByteBuffer src, int srcIdx)
+    public abstract void store(long dst, int dstIdx, BPlusIO<L> srcIo, long src, int srcIdx)
         throws IgniteCheckedException;
 
     /**
@@ -218,7 +218,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @return Lookup row.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract L getLookupRow(BPlusTree<L, ?> tree, ByteBuffer buf, int idx) throws IgniteCheckedException;
+    public abstract L getLookupRow(BPlusTree<L, ?> tree, long buf, int idx) throws IgniteCheckedException;
 
     /**
      * Copy items from source buffer to destination buffer.
@@ -232,7 +232,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param cpLeft Copy leftmost link (makes sense only for inner pages).
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void copyItems(ByteBuffer src, ByteBuffer dst, int srcIdx, int dstIdx, int cnt, boolean cpLeft)
+    public abstract void copyItems(long src, long dst, int srcIdx, int dstIdx, int cnt, boolean cpLeft)
         throws IgniteCheckedException;
 
     // Methods for B+Tree logic.
@@ -245,7 +245,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param rightId Page ID which will be to the right child for the inserted item.
      * @throws IgniteCheckedException If failed.
      */
-    public void insert(ByteBuffer buf, int idx, L row, byte[] rowBytes, long rightId)
+    public void insert(long buf, int idx, L row, byte[] rowBytes, long rightId)
         throws IgniteCheckedException {
         int cnt = getCount(buf);
 
@@ -266,9 +266,9 @@ public abstract class BPlusIO<L> extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     public void splitForwardPage(
-        ByteBuffer buf,
+        long buf,
         long fwdId,
-        ByteBuffer fwdBuf,
+        long fwdBuf,
         int mid,
         int cnt
     ) throws IgniteCheckedException {
@@ -291,7 +291,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param mid Bisection index.
      * @param fwdId New forward page ID.
      */
-    public void splitExistingPage(ByteBuffer buf, int mid, long fwdId) {
+    public void splitExistingPage(long buf, int mid, long fwdId) {
         setCount(buf, mid);
         setForward(buf, fwdId);
     }
@@ -302,7 +302,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param cnt Count.
      * @throws IgniteCheckedException If failed.
      */
-    public void remove(ByteBuffer buf, int idx, int cnt) throws IgniteCheckedException {
+    public void remove(long buf, int idx, int cnt) throws IgniteCheckedException {
         cnt--;
 
         copyItems(buf, buf, idx + 1, idx, cnt - idx, false);
@@ -320,11 +320,12 @@ public abstract class BPlusIO<L> extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     public boolean merge(
+        int pageSize,
         BPlusIO<L> prntIo,
-        ByteBuffer prnt,
+        long prnt,
         int prntIdx,
-        ByteBuffer left,
-        ByteBuffer right,
+        long left,
+        long right,
         boolean emptyBranch
     ) throws IgniteCheckedException {
         int prntCnt = prntIo.getCount(prnt);
@@ -337,7 +338,7 @@ public abstract class BPlusIO<L> extends PageIO {
         if (!isLeaf() && !emptyBranch)
             newCnt++;
 
-        if (newCnt > getMaxCount(left)) {
+        if (newCnt > getMaxCount(pageSize, left)) {
             assert !emptyBranch;
 
             return false;
@@ -373,15 +374,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param pos Position in buffer.
      * @param bytes Bytes.
      */
-    private static void putBytes(ByteBuffer buf, int pos, byte[] bytes) {
-        int oldPos = buf.position();
-
-        try {
-            buf.position(pos);
-            buf.put(bytes);
-        }
-        finally {
-            buf.position(oldPos);
-        }
+    private static void putBytes(long buf, int pos, byte[] bytes) {
+        PageUtils.putBytes(buf, pos, bytes);
     }
 }

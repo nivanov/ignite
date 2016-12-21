@@ -44,6 +44,11 @@ public interface Page extends AutoCloseable {
     public ByteBuffer getForRead();
 
     /**
+     * @return Pointer for modifying the page.
+     */
+    public long getForReadPointer();
+
+    /**
      * Releases reserved page. Released page can be evicted from RAM after flushing modifications to disk.
      */
     public void releaseRead();
@@ -54,9 +59,19 @@ public interface Page extends AutoCloseable {
     public ByteBuffer getForWrite();
 
     /**
+     * @return ByteBuffer for modifying the page.
+     */
+    public long getForWritePointer();
+
+    /**
      * @return ByteBuffer for modifying the page of {@code null} if failed to get write lock.
      */
     @Nullable public ByteBuffer tryGetForWrite();
+
+    /**
+     * @return ByteBuffer for modifying the page of {@code null} if failed to get write lock.
+     */
+    public long tryGetForWritePointer();
 
     /**
      * Releases reserved page. Released page can be evicted from RAM after flushing modifications to disk.

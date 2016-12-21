@@ -72,7 +72,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
     /** */
     private final PageHandler<CacheDataRow, Integer> writeRow =
         new PageHandler<CacheDataRow, Integer>() {
-            @Override public Integer run(Page page, PageIO iox, ByteBuffer buf, CacheDataRow row, int written)
+            @Override public Integer run(Page page, PageIO iox, long buf, CacheDataRow row, int written)
                 throws IgniteCheckedException {
                 DataPageIO io = (DataPageIO)iox;
 
@@ -380,7 +380,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
     @Override public void addForRecycle(ReuseBag bag) throws IgniteCheckedException {
         assert reuseList == this: "not allowed to be a reuse list";
 
-        put(bag, null, null, REUSE_BUCKET);
+        put(bag, null, 0L, REUSE_BUCKET);
     }
 
     /** {@inheritDoc} */
