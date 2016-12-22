@@ -109,7 +109,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
              */
             private int addRow(
                 Page page,
-                ByteBuffer buf,
+                long buf,
                 DataPageIO io,
                 CacheDataRow row,
                 int rowSize
@@ -149,7 +149,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
              */
             private int addRowFragment(
                 Page page,
-                ByteBuffer buf,
+                long buf,
                 DataPageIO io,
                 CacheDataRow row,
                 int written,
@@ -179,7 +179,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
 
     /** */
     private final PageHandler<Void, Long> rmvRow = new PageHandler<Void, Long>() {
-        @Override public Long run(Page page, PageIO iox, ByteBuffer buf, Void arg, int itemId)
+        @Override public Long run(Page page, PageIO iox, long buf, Void arg, int itemId)
             throws IgniteCheckedException {
             DataPageIO io = (DataPageIO)iox;
 
