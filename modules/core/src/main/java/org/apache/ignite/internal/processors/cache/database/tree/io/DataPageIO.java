@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
+import org.apache.ignite.internal.pagemem.PageMemory;
 import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.database.CacheDataRow;
@@ -148,7 +149,9 @@ public class DataPageIO extends PageIO {
      * @return Data page entry size.
      */
     private int getPageEntrySize(int payloadLen, int show) {
-        assert payloadLen > 0: payloadLen;
+        if (payloadLen == 0)
+            System.out.println();
+        assert payloadLen > 0 : payloadLen;
 
         int res = payloadLen;
 
@@ -400,6 +403,7 @@ public class DataPageIO extends PageIO {
     /**
      * @param buf Buffer.
      * @param itemId Fixed item ID (the index used for referencing an entry from the outside).
+     * @param pageSize Page size.
      * @return Data entry offset in bytes.
      */
     private int getDataOffset(long buf, int itemId, int pageSize) {
@@ -711,11 +715,13 @@ public class DataPageIO extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     public void addRow(
-        long buf,
+        final long buf,
         CacheDataRow row,
-        int rowSize,
-        int pageSize
+        final int rowSize,
+        final int pageSize
     ) throws IgniteCheckedException {
+        System.out.println("Start add row " + buf + " " + printPageLayout(buf, pageSize));
+
         assert rowSize <= getFreeSpace(buf): "can't call addRow if not enough space for the whole row";
 
         int fullEntrySize = getPageEntrySize(rowSize, SHOW_PAYLOAD_LEN | SHOW_ITEM);
@@ -730,6 +736,8 @@ public class DataPageIO extends PageIO {
         int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
 
         setLink(row, buf, itemId);
+
+        System.out.println("Add row " + buf + " " + printPageLayout(buf, pageSize));
     }
 
     /**
@@ -845,6 +853,7 @@ public class DataPageIO extends PageIO {
      * @param row Cache data row.
      * @param written Number of bytes of row size that was already written.
      * @param rowSize Row size.
+     * @param pageSize Page size.
      * @return Written payload size.
      * @throws IgniteCheckedException If failed.
      */
@@ -864,6 +873,7 @@ public class DataPageIO extends PageIO {
      * @param buf Byte buffer.
      * @param payload Payload bytes.
      * @param lastLink Link to the previous written fragment (link to the tail).
+     * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
     public void addRowFragment(
@@ -887,6 +897,7 @@ public class DataPageIO extends PageIO {
      * @param lastLink Link to the previous written fragment (link to the tail).
      * @param row Row.
      * @param payload Payload bytes.
+     * @param pageSize Page size.
      * @return Written payload size.
      * @throws IgniteCheckedException If failed.
      */
@@ -912,23 +923,39 @@ public class DataPageIO extends PageIO {
 
         if (payload == null) {
             ByteBuffer buf0 = nioAccess.newDirectByteBuffer(buf, pageSize, null);
+            buf0.order(PageMemory.NATIVE_BYTE_ORDER);
 
             buf0.position(dataOff);
 
-            buf0.putShort((short)(payloadSize | FRAGMENTED_FLAG));
+            short p = (short)(payloadSize | FRAGMENTED_FLAG);
+
+            System.out.println("Start add row fragment " + buf + " " + dataOff + " " + payloadSize + " " + p);
+
+            buf0.putShort(p);
             buf0.putLong(lastLink);
 
             int rowOff = rowSize - written - payloadSize;
 
+            System.out.println("Size1: " + PageUtils.getShort(buf, dataOff));
+
             writeFragmentData(row, buf0, rowOff, payloadSize);
+
+            System.out.println("Size2: " + PageUtils.getShort(buf, dataOff));
         }
-        else
-            PageUtils.putBytes(buf, dataOff, payload);
+        else {
+            PageUtils.putShort(buf, dataOff, (short)(payloadSize | FRAGMENTED_FLAG));
+
+            PageUtils.putLong(buf, dataOff + 2, lastLink);
+
+            PageUtils.putBytes(buf, dataOff + 10, payload);
+        }
 
         int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
 
         if (row != null)
             setLink(row, buf, itemId);
+
+        System.out.println("Add fragment " + buf + " " + printPageLayout(buf, pageSize));
 
         return payloadSize;
     }
