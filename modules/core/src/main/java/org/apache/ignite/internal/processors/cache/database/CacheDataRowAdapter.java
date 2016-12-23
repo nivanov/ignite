@@ -104,7 +104,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
                     if (first) {
                         if (nextLink == 0) {
                             // Fast path for a single page row.
-                            readFullRow(coctx, data.offset(), keyOnly);
+                            readFullRow(coctx, buf + data.offset(), keyOnly);
 
                             return;
                         }

@@ -29,6 +29,8 @@ import org.apache.ignite.internal.processors.cache.database.CacheDataRow;
 import org.apache.ignite.internal.processors.cache.database.tree.util.PageHandler;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
 import org.apache.ignite.internal.util.typedef.internal.SB;
+import sun.misc.JavaNioAccess;
+import sun.misc.SharedSecrets;
 
 /**
  * Data pages IO.
@@ -184,9 +186,10 @@ public class DataPageIO extends PageIO {
     /**
      * @param buf Buffer.
      * @param freeSpace Free space.
+     * @param pageSize Page size.
      */
     private void setRealFreeSpace(long buf, int freeSpace, int pageSize) {
-        assert freeSpace == actualFreeSpace(buf, pageSize): freeSpace + " != " + actualFreeSpace(buf, pageSize);
+        assert freeSpace == actualFreeSpace(buf, pageSize) : freeSpace + " != " + actualFreeSpace(buf, pageSize);
 
         PageUtils.putShort(buf, FREE_SPACE_OFF, (short)freeSpace);
     }
@@ -872,6 +875,9 @@ public class DataPageIO extends PageIO {
         addRowFragment(buf, 0, 0, lastLink, null, payload, pageSize);
     }
 
+    // TODO GG-11810.
+    private JavaNioAccess nioAccess = SharedSecrets.getJavaNioAccess();
+
     /**
      * Adds maximum possible fragment of the given row to this data page and sets respective link to the row.
      *
@@ -905,11 +911,11 @@ public class DataPageIO extends PageIO {
         int dataOff = getDataOffsetForWrite(buf, fullEntrySize, directCnt, indirectCnt, pageSize);
 
         if (payload == null) {
-            ByteBuffer buf0 = null;
+            ByteBuffer buf0 = nioAccess.newDirectByteBuffer(buf, pageSize, null);
 
             buf0.position(dataOff);
 
-            buf0.putShort((short) (payloadSize | FRAGMENTED_FLAG));
+            buf0.putShort((short)(payloadSize | FRAGMENTED_FLAG));
             buf0.putLong(lastLink);
 
             int rowOff = rowSize - written - payloadSize;
