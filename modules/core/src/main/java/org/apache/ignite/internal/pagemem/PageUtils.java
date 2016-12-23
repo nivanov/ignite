@@ -44,6 +44,18 @@ public class PageUtils {
         unsafe.copyMemory(null, src + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
     }
 
+    public static byte[] getBytes(long buf, int off, int len) {
+        byte[] bytes = new byte[len];
+
+        unsafe.copyMemory(null, buf + off, bytes, GridUnsafe.BYTE_ARR_OFF, len);
+
+        return bytes;
+    }
+
+    public static void getBytes(long src, int srcOff, byte[] dst, int dstOff, int len) {
+        unsafe.copyMemory(null, src + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
+    }
+
     public static short getShort(long buf, int off) {
         return unsafe.getShort(buf + off);
     }
