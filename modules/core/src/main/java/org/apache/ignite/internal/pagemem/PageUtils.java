@@ -29,19 +29,31 @@ public class PageUtils {
     private static final Unsafe unsafe = GridUnsafe.UNSAFE;
 
     public static byte getByte(long buf, int off) {
-        return unsafe.getByte(buf, off);
+        return unsafe.getByte(buf + off);
+    }
+
+    public static byte[] getBytes(long buf, int off, int len) {
+        byte[] bytes = new byte[len];
+
+        unsafe.copyMemory(null, buf + off, bytes, GridUnsafe.BYTE_ARR_OFF, len);
+
+        return bytes;
+    }
+
+    public static void getBytes(long src, int srcOff, byte[] dst, int dstOff, int len) {
+        unsafe.copyMemory(null, src + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
     }
 
     public static short getShort(long buf, int off) {
-        return unsafe.getShort(buf, off);
+        return unsafe.getShort(buf + off);
     }
 
     public static int getInt(long buf, int off) {
-        return unsafe.getInt(buf, off);
+        return unsafe.getInt(buf + off);
     }
 
     public static long getLong(long buf, int off) {
-        return unsafe.getLong(buf, off);
+        return unsafe.getLong(buf + off);
     }
 
     public static void putBytes(long buf, int off, byte[] bytes) {
@@ -49,18 +61,18 @@ public class PageUtils {
     }
 
     public static void putByte(long buf, int off, byte v) {
-        unsafe.putByte(buf, off, v);
+        unsafe.putByte(buf + off, v);
     }
 
     public static void putShort(long buf, int off, short v) {
-        unsafe.putShort(buf, off, v);
+        unsafe.putShort(buf + off, v);
     }
 
     public static void putInt(long buf, int off, int v) {
-        unsafe.putInt(buf, off, v);
+        unsafe.putInt(buf + off, v);
     }
 
     public static void putLong(long buf, int off, long v) {
-        unsafe.putLong(buf, off, v);
+        unsafe.putLong(buf + off, v);
     }
 }

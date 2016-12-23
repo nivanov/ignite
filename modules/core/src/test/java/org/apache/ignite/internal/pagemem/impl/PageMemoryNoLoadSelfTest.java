@@ -32,6 +32,7 @@ import org.apache.ignite.internal.pagemem.Page;
 import org.apache.ignite.internal.pagemem.PageIdAllocator;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
 import org.apache.ignite.internal.pagemem.PageMemory;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.testframework.junits.common.GridCommonAbstractTest;
@@ -190,7 +191,7 @@ public class PageMemoryNoLoadSelfTest extends GridCommonAbstractTest {
             // Check that initial pages are accessible.
             for (FullPageId id : old) {
                 try (Page page = mem.page(id.cacheId(), id.pageId())) {
-                    ByteBuffer buf = page.getForWrite();
+                    long buf = page.getForWritePointer();
 
                     assertNotNull(buf);
 
@@ -231,7 +232,7 @@ public class PageMemoryNoLoadSelfTest extends GridCommonAbstractTest {
             // Check that updated pages are accessible using new IDs.
             for (FullPageId id : updated) {
                 try (Page page = mem.page(id.cacheId(), id.pageId())) {
-                    ByteBuffer buf = page.getForWrite();
+                    long buf = page.getForWritePointer();
 
                     assertNotNull(buf);
 
@@ -242,7 +243,7 @@ public class PageMemoryNoLoadSelfTest extends GridCommonAbstractTest {
                         page.releaseWrite(false);
                     }
 
-                    buf = page.getForRead();
+                    buf = page.getForReadPointer();
 
                     assertNotNull(buf);
 
@@ -282,13 +283,13 @@ public class PageMemoryNoLoadSelfTest extends GridCommonAbstractTest {
      * @param val Value to write.
      */
     private void writePage(Page page, int val) {
-        ByteBuffer bytes = page.getForWrite();
+        long bytes = page.getForWritePointer();
 
         try {
             PageIO.setPageId(bytes, page.id());
 
             for (int i = PageIO.COMMON_HEADER_END; i < PAGE_SIZE; i++)
-                bytes.put(i, (byte)val);
+                PageUtils.putByte(bytes, i, (byte)val);
         }
         finally {
             page.releaseWrite(true);

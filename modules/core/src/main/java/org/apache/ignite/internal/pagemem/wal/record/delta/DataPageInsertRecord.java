@@ -51,12 +51,12 @@ public class DataPageInsertRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(ByteBuffer buf) throws IgniteCheckedException {
+    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
         assert payload != null;
 
         DataPageIO io = DataPageIO.VERSIONS.forPage(buf);
 
-        io.addRow(buf, payload);
+        io.addRow(buf, payload, pageSize);
     }
 
     /** {@inheritDoc} */

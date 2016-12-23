@@ -40,7 +40,7 @@ public class FixCountRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(ByteBuffer buf) throws IgniteCheckedException {
+    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
         BPlusIO<?> io = PageIO.getBPlusIO(buf);
 
         io.setCount(buf, cnt);

@@ -53,8 +53,8 @@ public class PagesListMetaIO extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId) {
-        super.initNewPage(buf, pageId);
+    @Override public void initNewPage(long buf, long pageId, int pageSize) {
+        super.initNewPage(buf, pageId, pageSize);
 
         setCount(buf, 0);
         setNextMetaPageId(buf, 0L);

@@ -72,8 +72,8 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId) {
-        super.initNewPage(buf, pageId);
+    @Override public void initNewPage(long buf, long pageId, int pageSize) {
+        super.initNewPage(buf, pageId, pageSize);
 
         setCount(buf, 0);
         setForward(buf, 0);
@@ -160,7 +160,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param buf Buffer.
      * @return Max items count.
      */
-    public abstract int getMaxCount(int pageSize, long buf);
+    public abstract int getMaxCount(long buf, int pageSize);
 
     /**
      * Store the needed info about the row in the page. Leaf and inner pages can store different info.
@@ -263,6 +263,7 @@ public abstract class BPlusIO<L> extends PageIO {
      * @param fwdBuf Forward buffer.
      * @param mid Bisection index.
      * @param cnt Initial elements count in the page being split.
+     * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
     public void splitForwardPage(
@@ -270,9 +271,10 @@ public abstract class BPlusIO<L> extends PageIO {
         long fwdId,
         long fwdBuf,
         int mid,
-        int cnt
+        int cnt,
+        int pageSize
     ) throws IgniteCheckedException {
-        initNewPage(fwdBuf, fwdId);
+        initNewPage(fwdBuf, fwdId, pageSize);
 
         cnt -= mid;
 
@@ -320,13 +322,13 @@ public abstract class BPlusIO<L> extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     public boolean merge(
-        int pageSize,
         BPlusIO<L> prntIo,
         long prnt,
         int prntIdx,
         long left,
         long right,
-        boolean emptyBranch
+        boolean emptyBranch,
+        int pageSize
     ) throws IgniteCheckedException {
         int prntCnt = prntIo.getCount(prnt);
         int leftCnt = getCount(left);
@@ -338,7 +340,7 @@ public abstract class BPlusIO<L> extends PageIO {
         if (!isLeaf() && !emptyBranch)
             newCnt++;
 
-        if (newCnt > getMaxCount(pageSize, left)) {
+        if (newCnt > getMaxCount(left, pageSize)) {
             assert !emptyBranch;
 
             return false;

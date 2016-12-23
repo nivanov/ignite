@@ -171,6 +171,13 @@ public abstract class DataStructure implements PageLockListener {
         PageHandler.readUnlock(page, buf, this);
     }
 
+    /**
+     * @return Page size.
+     */
+    protected final int pageSize() {
+        return pageMem.pageSize();
+    }
+
     /** {@inheritDoc} */
     @Override public void onBeforeWriteLock(Page page) {
         // No-op.

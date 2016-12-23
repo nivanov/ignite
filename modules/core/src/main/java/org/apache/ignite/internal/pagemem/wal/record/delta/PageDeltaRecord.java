@@ -65,7 +65,7 @@ public abstract class PageDeltaRecord extends WALRecord {
      * @param buf Page buffer.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void applyDelta(ByteBuffer buf) throws IgniteCheckedException;
+    public abstract void applyDelta(long buf, int pageSize) throws IgniteCheckedException;
 
     /** {@inheritDoc} */
     @Override public String toString() {

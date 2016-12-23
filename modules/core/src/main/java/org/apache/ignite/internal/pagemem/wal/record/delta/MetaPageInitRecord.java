@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.pagemem.wal.record.delta;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageMetaIO;
@@ -75,12 +74,12 @@ public class MetaPageInitRecord extends InitNewPageRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(ByteBuffer buf) throws IgniteCheckedException {
+    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
         PageMetaIO io = ioType == PageIO.T_META ?
             PageMetaIO.VERSIONS.forPage(buf) :
             PagePartitionMetaIO.VERSIONS.forPage(buf);
 
-        io.initNewPage(buf, newPageId);
+        io.initNewPage(buf, newPageId, pageSize);
 
         io.setTreeRoot(buf, treeRoot);
         io.setReuseListRoot(buf, reuseListRoot);

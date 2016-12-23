@@ -126,7 +126,7 @@ public class TrackingPageIO extends PageIO {
         if (last <= lastSuccessfulBackupId) { //we can drop our data
             PageUtils.putLong(buf, LAST_BACKUP_OFFSET, nextBackupId);
 
-            PageHandler.zeroMemory(buf, SIZE_FIELD_OFFSET, buf.capacity() - SIZE_FIELD_OFFSET);
+            PageHandler.zeroMemory(buf, SIZE_FIELD_OFFSET, pageSize - SIZE_FIELD_OFFSET);
         }
         else { //we can't drop data, it is still necessary for incremental backups
             int len = cntOfPage >> 3;

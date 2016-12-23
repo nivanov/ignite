@@ -17,13 +17,13 @@
 
 package org.apache.ignite.internal.processors.cache.database.freelist;
 
-import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
 import org.apache.ignite.internal.pagemem.PageIdAllocator;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
 import org.apache.ignite.internal.pagemem.PageMemory;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.pagemem.wal.IgniteWriteAheadLogManager;
 import org.apache.ignite.internal.pagemem.wal.record.delta.DataPageInsertFragmentRecord;
 import org.apache.ignite.internal.pagemem.wal.record.delta.DataPageInsertRecord;
@@ -31,6 +31,7 @@ import org.apache.ignite.internal.pagemem.wal.record.delta.DataPageRemoveRecord;
 import org.apache.ignite.internal.processors.cache.database.CacheDataRow;
 import org.apache.ignite.internal.processors.cache.database.tree.io.CacheVersionIO;
 import org.apache.ignite.internal.processors.cache.database.tree.io.DataPageIO;
+import org.apache.ignite.internal.processors.cache.database.tree.io.DataPagePayload;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
 import org.apache.ignite.internal.processors.cache.database.tree.reuse.ReuseBag;
 import org.apache.ignite.internal.processors.cache.database.tree.reuse.ReuseList;
@@ -114,19 +115,17 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
                 CacheDataRow row,
                 int rowSize
             ) throws IgniteCheckedException {
-                // TODO: context parameter.
-                io.addRow(buf, row, rowSize);
+                io.addRow(buf, row, rowSize, pageSize());
 
                 if (isWalDeltaRecordNeeded(wal, page)) {
                     // TODO This record must contain only a reference to a logical WAL record with the actual data.
                     byte[] payload = new byte[rowSize];
 
-                    io.setPositionAndLimitOnPayload(buf, PageIdUtils.itemId(row.link()));
+                    DataPagePayload data = io.readPayload(buf, PageIdUtils.itemId(row.link()), pageSize());
 
-                    assert buf.remaining() == rowSize;
+                    assert data.payloadSize() == rowSize;
 
-                    buf.get(payload);
-                    buf.position(0);
+                    PageUtils.getBytes(buf, data.offset(), payload, 0, rowSize);
 
                     wal.log(new DataPageInsertRecord(
                         cacheId,
@@ -158,7 +157,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
                 // Read last link before the fragment write, because it will be updated there.
                 long lastLink = row.link();
 
-                int payloadSize = io.addRowFragment(buf, row, written, rowSize);
+                int payloadSize = io.addRowFragment(buf, row, written, rowSize, pageSize());
 
                 assert payloadSize > 0: payloadSize;
 
@@ -166,9 +165,9 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
                     // TODO This record must contain only a reference to a logical WAL record with the actual data.
                     byte[] payload = new byte[payloadSize];
 
-                    io.setPositionAndLimitOnPayload(buf, PageIdUtils.itemId(row.link()));
-                    buf.get(payload);
-                    buf.position(0);
+                    DataPagePayload data = io.readPayload(buf, PageIdUtils.itemId(row.link()), pageSize());
+
+                    PageUtils.getBytes(buf, data.offset(), payload, 0, payloadSize);
 
                     wal.log(new DataPageInsertFragmentRecord(cacheId, page.id(), payload, lastLink));
                 }
@@ -187,7 +186,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
 
             assert oldFreeSpace >= 0: oldFreeSpace;
 
-            long nextLink = io.removeRow(buf, itemId);
+            long nextLink = io.removeRow(buf, itemId, pageSize());
 
             if (isWalDeltaRecordNeeded(wal, page))
                 wal.log(new DataPageRemoveRecord(cacheId, page.id(), itemId));

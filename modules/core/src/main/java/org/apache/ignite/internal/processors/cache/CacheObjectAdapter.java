@@ -164,8 +164,14 @@ public abstract class CacheObjectAdapter implements CacheObject, Externalizable 
      * @return {@code True} if data were successfully written.
      * @throws IgniteCheckedException If failed.
      */
-    public static boolean putValue(byte cacheObjType, final ByteBuffer buf, int off, int len,
-        byte[] valBytes, final int start) throws IgniteCheckedException {
+    public static boolean putValue(byte cacheObjType,
+        final ByteBuffer buf,
+        int off,
+        int len,
+        byte[] valBytes,
+        final int start)
+        throws IgniteCheckedException
+    {
         int dataLen = valBytes.length;
 
         if (buf.remaining() < len)

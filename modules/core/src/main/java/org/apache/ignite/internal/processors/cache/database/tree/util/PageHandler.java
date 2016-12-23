@@ -253,7 +253,7 @@ public abstract class PageHandler<X, R> {
 
         long pageId = page.id();
 
-        init.initNewPage(buf, pageId);
+        init.initNewPage(buf, pageId, page.size());
 
         // Here we should never write full page, because it is known to be new.
         page.fullPageWalRecordPolicy(FALSE);

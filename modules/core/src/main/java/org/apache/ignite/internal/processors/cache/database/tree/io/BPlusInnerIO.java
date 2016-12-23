@@ -45,7 +45,7 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
     }
 
     /** {@inheritDoc} */
-    @Override public int getMaxCount(int pageSize, long buf) {
+    @Override public int getMaxCount(long buf, int pageSize) {
         // The structure of the page is the following:
         // |ITEMS_OFF|w|A|x|B|y|C|z|
         // where capital letters are data items, lowercase letters are 8 byte page references.
@@ -157,9 +157,10 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
         long leftChildId,
         L row,
         byte[] rowBytes,
-        long rightChildId
+        long rightChildId,
+        int pageSize
     ) throws IgniteCheckedException {
-        initNewPage(newRootBuf, newRootId);
+        initNewPage(newRootBuf, newRootId, pageSize);
 
         setCount(newRootBuf, 1);
         setLeft(newRootBuf, 0, leftChildId);

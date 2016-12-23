@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.pagemem.wal.record.delta;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.processors.cache.database.freelist.io.PagesListNodeIO;
 import org.apache.ignite.internal.util.tostring.GridToStringExclude;
@@ -51,10 +50,10 @@ public class PagesListAddPageRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(ByteBuffer buf) throws IgniteCheckedException {
+    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
         PagesListNodeIO io = PagesListNodeIO.VERSIONS.forPage(buf);
 
-        int cnt = io.addPage(buf, dataPageId);
+        int cnt = io.addPage(buf, dataPageId, pageSize);
 
         assert cnt >= 0 : cnt;
     }

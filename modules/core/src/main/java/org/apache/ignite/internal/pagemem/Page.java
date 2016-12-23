@@ -95,6 +95,10 @@ public interface Page extends AutoCloseable {
      */
     public Boolean fullPageWalRecordPolicy();
 
+    public int size();
+
+    public ByteBuffer pageBuffer();
+
     /**
      * Release page.
      */

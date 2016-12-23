@@ -275,7 +275,7 @@ public abstract class PageIO {
      * @param buf Buffer.
      * @param pageId Page ID.
      */
-    public void initNewPage(long buf, long pageId) {
+    public void initNewPage(long buf, long pageId, int pageSize) {
         setType(buf, getType());
         setVersion(buf, getVersion());
         setPageId(buf, pageId);

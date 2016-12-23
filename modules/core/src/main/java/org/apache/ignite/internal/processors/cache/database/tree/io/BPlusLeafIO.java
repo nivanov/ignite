@@ -35,7 +35,7 @@ public abstract class BPlusLeafIO<L> extends BPlusIO<L> {
     }
 
     /** {@inheritDoc} */
-    @Override public int getMaxCount(int pageSize, long buf) {
+    @Override public int getMaxCount(long buf, int pageSize) {
         return (pageSize - ITEMS_OFF) / itemSize;
     }
 

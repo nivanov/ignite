@@ -52,8 +52,8 @@ public class PagesListNodeIO extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId) {
-        super.initNewPage(buf, pageId);
+    @Override public void initNewPage(long buf, long pageId, int pageSize) {
+        super.initNewPage(buf, pageId, pageSize);
 
         setEmpty(buf);
 
@@ -163,9 +163,10 @@ public class PagesListNodeIO extends PageIO {
      *
      * @param buf Page buffer.
      * @param pageId Page ID.
+     * @param pageSize Page size.
      * @return Total number of items in this page.
      */
-    public int addPage(int pageSize, long buf, long pageId) {
+    public int addPage(long buf, long pageId, int pageSize) {
         int cnt = getCount(buf);
 
         if (cnt == getCapacity(pageSize))

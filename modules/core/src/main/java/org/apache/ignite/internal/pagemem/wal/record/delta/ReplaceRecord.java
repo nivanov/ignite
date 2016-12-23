@@ -55,7 +55,7 @@ public class ReplaceRecord<L> extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(ByteBuffer buf)
+    @Override public void applyDelta(long buf, int pageSize)
         throws IgniteCheckedException {
         if (io.getCount(buf) < idx)
             throw new DeltaApplicationException("Index is greater than count: " + idx);

@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.processors.database;
 
-import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.ignite.IgniteCheckedException;
@@ -88,14 +87,14 @@ public class BPlusTreeReuseSelfTest extends BPlusTreeSelfTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onReadLock(Page page, ByteBuffer buf) {
+        @Override public void onReadLock(Page page, long buf) {
             checkPageId(page, buf);
 
             assertTrue(readLocks.get().add(page.id()));
         }
 
         /** {@inheritDoc} */
-        @Override public void onReadUnlock(Page page, ByteBuffer buf) {
+        @Override public void onReadUnlock(Page page, long buf) {
             checkPageId(page, buf);
 
             assertTrue(readLocks.get().remove(page.id()));
@@ -107,8 +106,8 @@ public class BPlusTreeReuseSelfTest extends BPlusTreeSelfTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onWriteLock(Page page, ByteBuffer buf) {
-            if (buf == null)
+        @Override public void onWriteLock(Page page, long buf) {
+            if (buf == 0L)
                 return; // Failed to lock.
 
             checkPageId(page, buf);
@@ -117,7 +116,7 @@ public class BPlusTreeReuseSelfTest extends BPlusTreeSelfTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onWriteUnlock(Page page, ByteBuffer buf) {
+        @Override public void onWriteUnlock(Page page, long buf) {
             assertEquals(effectivePageId(page.id()), effectivePageId(PageIO.getPageId(buf)));
 
             assertTrue(writeLocks.get().remove(page.id()));
