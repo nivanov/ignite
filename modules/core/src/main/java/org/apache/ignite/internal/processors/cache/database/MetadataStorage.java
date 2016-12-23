@@ -17,13 +17,13 @@
 
 package org.apache.ignite.internal.processors.cache.database;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.internal.pagemem.FullPageId;
 import org.apache.ignite.internal.pagemem.PageMemory;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.pagemem.wal.IgniteWriteAheadLogManager;
 import org.apache.ignite.internal.processors.cache.database.tree.BPlusTree;
 import org.apache.ignite.internal.processors.cache.database.tree.io.BPlusIO;
@@ -31,6 +31,7 @@ import org.apache.ignite.internal.processors.cache.database.tree.io.BPlusInnerIO
 import org.apache.ignite.internal.processors.cache.database.tree.io.BPlusLeafIO;
 import org.apache.ignite.internal.processors.cache.database.tree.io.IOVersions;
 import org.apache.ignite.internal.processors.cache.database.tree.reuse.ReuseList;
+import org.apache.ignite.internal.processors.cache.database.tree.util.PageHandler;
 import org.apache.ignite.internal.util.typedef.internal.U;
 
 /**
@@ -190,19 +191,19 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override protected int compare(final BPlusIO<IndexItem> io, final ByteBuffer buf, final int idx,
+        @Override protected int compare(final BPlusIO<IndexItem> io, final long buf, final int idx,
             final IndexItem row) throws IgniteCheckedException {
             final int off = ((IndexIO)io).getOffset(idx);
 
             int shift = 0;
 
             // Compare index names.
-            final byte len = buf.get(off + shift);
+            final byte len = PageUtils.getByte(off, shift);
 
             shift += BYTE_LEN;
 
             for (int i = 0; i < len && i < row.idxName.length; i++) {
-                final int cmp = Byte.compare(buf.get(off + i + shift), row.idxName[i]);
+                final int cmp = Byte.compare(PageUtils.getByte(off, i + shift), row.idxName[i]);
 
                 if (cmp != 0)
                     return cmp;
@@ -212,7 +213,7 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override protected IndexItem getRow(final BPlusIO<IndexItem> io, final ByteBuffer buf,
+        @Override protected IndexItem getRow(final BPlusIO<IndexItem> io, final long buf,
             final int idx) throws IgniteCheckedException {
             return readRow(buf, ((IndexIO)io).getOffset(idx));
         }
@@ -251,27 +252,18 @@ public class MetadataStorage implements MetaStore {
      * @param row Row to store.
      */
     private static void storeRow(
-        final ByteBuffer buf,
+        final long buf,
         final int off,
         final IndexItem row
     ) {
-        int origPos = buf.position();
+        // Index name length.
+        PageUtils.putByte(buf, off, (byte)row.idxName.length);
 
-        try {
-            buf.position(off);
+        // Index name.
+        PageUtils.putBytes(buf, off + 1, row.idxName);
 
-            // Index name length.
-            buf.put((byte)row.idxName.length);
-
-            // Index name.
-            buf.put(row.idxName);
-
-            // Page ID.
-            buf.putLong(row.pageId);
-        }
-        finally {
-            buf.position(origPos);
-        }
+        // Page ID.
+        PageUtils.putLong(buf, off + 1 + row.idxName.length, row.pageId);
     }
 
     /**
@@ -283,39 +275,20 @@ public class MetadataStorage implements MetaStore {
      * @param srcOff Src buf offset.
      */
     private static void storeRow(
-        final ByteBuffer dst,
+        final long dst,
         final int dstOff,
-        final ByteBuffer src,
+        final long src,
         final int srcOff
     ) {
-        int srcOrigPos = src.position();
-        int dstOrigPos = dst.position();
+        // Index name length.
+        final byte len = PageUtils.getByte(src, srcOff);
 
-        try {
-            src.position(srcOff);
-            dst.position(dstOff);
+        PageUtils.putByte(dst, dstOff, len);
 
-            // Index name length.
-            final byte len = src.get();
+        PageHandler.copyMemory(src, srcOff + 1, dst, dstOff + 1, len);
 
-            dst.put(len);
-
-            int lim = src.limit();
-
-            src.limit(src.position() + len);
-
-            // Index name.
-            dst.put(src);
-
-            src.limit(lim);
-
-            // Page ID.
-            dst.putLong(src.getLong());
-        }
-        finally {
-            src.position(srcOrigPos);
-            dst.position(dstOrigPos);
-        }
+        // Page ID.
+        PageUtils.putLong(dst, dstOff + 1 + len, PageUtils.getLong(src, srcOff + 1 + len));
     }
 
     /**
@@ -325,28 +298,17 @@ public class MetadataStorage implements MetaStore {
      * @param off Offset in buf.
      * @return Read row.
      */
-    private static IndexItem readRow(final ByteBuffer buf, final int off) {
-        int origOff = buf.position();
+    private static IndexItem readRow(final long buf, final int off) {
+        // Index name length.
+        final int len = PageUtils.getByte(buf, 0) & 0xFF;
 
-        try {
-            buf.position(off);
+        // Index name.
+        final byte[] idxName = PageUtils.getBytes(buf, 1, len);
 
-            // Index name length.
-            final int len = buf.get() & 0xFF;
+        // Page ID.
+        final long pageId = PageUtils.getLong(buf, off + 1 + len);
 
-            // Index name.
-            final byte[] idxName = new byte[len];
-
-            buf.get(idxName);
-
-            // Page ID.
-            final long pageId = buf.getLong();
-
-            return new IndexItem(idxName, pageId);
-        }
-        finally {
-            buf.position(origOff);
-        }
+        return new IndexItem(idxName, pageId);
     }
 
     /**
@@ -378,19 +340,19 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(ByteBuffer buf, int off, IndexItem row) throws IgniteCheckedException {
+        @Override public void storeByOffset(long buf, int off, IndexItem row) throws IgniteCheckedException {
             storeRow(buf, off, row);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(final ByteBuffer dst, final int dstIdx, final BPlusIO<IndexItem> srcIo,
-            final ByteBuffer src,
+        @Override public void store(final long dst, final int dstIdx, final BPlusIO<IndexItem> srcIo,
+            final long src,
             final int srcIdx) throws IgniteCheckedException {
             storeRow(dst, offset(dstIdx), src, ((IndexIO)srcIo).getOffset(srcIdx));
         }
 
         /** {@inheritDoc} */
-        @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree, final ByteBuffer buf,
+        @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree, final long buf,
             final int idx) throws IgniteCheckedException {
             return readRow(buf, offset(idx));
         }
@@ -419,19 +381,22 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(ByteBuffer buf, int off, IndexItem row) throws IgniteCheckedException {
+        @Override public void storeByOffset(long buf, int off, IndexItem row) throws IgniteCheckedException {
             storeRow(buf, off, row);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(final ByteBuffer dst, final int dstIdx, final BPlusIO<IndexItem> srcIo,
-            final ByteBuffer src,
+        @Override public void store(final long dst,
+            final int dstIdx,
+            final BPlusIO<IndexItem> srcIo,
+            final long src,
             final int srcIdx) throws IgniteCheckedException {
             storeRow(dst, offset(dstIdx), src, ((IndexIO)srcIo).getOffset(srcIdx));
         }
 
         /** {@inheritDoc} */
-        @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree, final ByteBuffer buf,
+        @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree,
+            final long buf,
             final int idx) throws IgniteCheckedException {
             return readRow(buf, offset(idx));
         }

@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
 import org.apache.ignite.internal.processors.cache.GridCacheContext;
@@ -29,6 +30,7 @@ import org.apache.ignite.internal.processors.cache.IncompleteObject;
 import org.apache.ignite.internal.processors.cache.KeyCacheObject;
 import org.apache.ignite.internal.processors.cache.database.tree.io.DataPageIO;
 import org.apache.ignite.internal.processors.cache.database.tree.io.CacheVersionIO;
+import org.apache.ignite.internal.processors.cache.database.tree.io.DataPagePayload;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
 import org.apache.ignite.internal.util.tostring.GridToStringExclude;
 import org.apache.ignite.internal.util.tostring.GridToStringInclude;
@@ -68,7 +70,6 @@ public class CacheDataRowAdapter implements CacheDataRow {
         // Link can be 0 here.
         this.link = link;
     }
-
     /**
      * Read row from data pages.
      *
@@ -89,19 +90,21 @@ public class CacheDataRowAdapter implements CacheDataRow {
 
         do {
             try (Page page = page(pageId(nextLink), cctx)) {
-                ByteBuffer buf = page.getForRead(); // Non-empty data page must not be recycled.
+                long buf = page.getForReadPointer(); // Non-empty data page must not be recycled.
 
-                assert buf != null: nextLink;
+                assert buf != 0L : nextLink;
 
                 try {
                     DataPageIO io = DataPageIO.VERSIONS.forPage(buf);
 
-                    nextLink = io.setPositionAndLimitOnPayload(buf, itemId(nextLink));
+                    DataPagePayload data = io.readPayload(buf, itemId(nextLink), page.size());
+
+                    nextLink = data.nextLink();
 
                     if (first) {
                         if (nextLink == 0) {
                             // Fast path for a single page row.
-                            readFullRow(coctx, buf, keyOnly);
+                            readFullRow(coctx, data.offset(), keyOnly);
 
                             return;
                         }
@@ -109,7 +112,12 @@ public class CacheDataRowAdapter implements CacheDataRow {
                         first = false;
                     }
 
-                    incomplete = readFragment(coctx, buf, keyOnly, incomplete);
+                    ByteBuffer buf0 = page.pageBuffer();
+
+                    buf0.position(data.offset());
+                    buf0.limit(data.offset() + data.payloadSize());
+
+                    incomplete = readFragment(coctx, buf0, keyOnly, incomplete);
 
                     if (keyOnly && key != null)
                         return;
@@ -121,7 +129,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
         }
         while(nextLink != 0);
 
-        assert isReady(): "ready";
+        assert isReady() : "ready";
     }
 
     /**
@@ -179,8 +187,23 @@ public class CacheDataRowAdapter implements CacheDataRow {
      * @param keyOnly {@code true} If need to read only key object.
      * @throws IgniteCheckedException If failed.
      */
-    private void readFullRow(CacheObjectContext coctx, ByteBuffer buf, boolean keyOnly) throws IgniteCheckedException {
-        key = coctx.processor().toKeyCacheObject(coctx, buf);
+    private void readFullRow(CacheObjectContext coctx, long buf, boolean keyOnly) throws IgniteCheckedException {
+        int off = 0;
+
+        int len = PageUtils.getInt(buf, off);
+        off += 4;
+
+        if (len == 0)
+            key = null;
+        else {
+            byte[] bytes = PageUtils.getBytes(buf, off, len);
+            off += len;
+
+            byte type = PageUtils.getByte(buf, off);
+            off++;
+
+            key = coctx.processor().toKeyCacheObject(coctx, type, bytes);
+        }
 
         if (keyOnly) {
             assert key != null: "key";
@@ -188,9 +211,26 @@ public class CacheDataRowAdapter implements CacheDataRow {
             return;
         }
 
-        val = coctx.processor().toCacheObject(coctx, buf);
-        ver = CacheVersionIO.read(buf, false);
-        expireTime = buf.getLong();
+        len = PageUtils.getInt(buf, off);
+        off += 4;
+
+        if (len == 0)
+            val = null;
+        else {
+            byte[] bytes = PageUtils.getBytes(buf, off, len);
+            off += len;
+
+            byte type = PageUtils.getByte(buf, off);
+            off++;
+
+            val = coctx.processor().toCacheObject(coctx, type, bytes);
+        }
+
+        ver = CacheVersionIO.read(buf + off, false);
+
+        off += CacheVersionIO.size(ver, false);
+
+        expireTime = PageUtils.getLong(buf, off);
 
         assert isReady(): "ready";
     }

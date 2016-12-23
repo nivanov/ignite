@@ -71,6 +71,11 @@ public class PageNoStoreImpl implements Page {
         buf = pageMem.wrapPointer(absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD, pageMem.pageSize());
     }
 
+    /** {@inheritDoc} */
+    @Override public ByteBuffer pageBuffer() {
+        return pageMem.wrapPointer(absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD, pageMem.pageSize());
+    }
+
     private long pointer() {
         return absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD;
     }
@@ -172,6 +177,11 @@ public class PageNoStoreImpl implements Page {
     /** {@inheritDoc} */
     @Override public Boolean fullPageWalRecordPolicy() {
         return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public int size() {
+        return pageMem.pageSize();
     }
 
     /** {@inheritDoc} */

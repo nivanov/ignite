@@ -18,6 +18,7 @@
 package org.apache.ignite.internal.processors.cache;
 
 import java.nio.ByteBuffer;
+import org.apache.ignite.internal.pagemem.PageUtils;
 
 /**
  * Incomplete object.
@@ -85,5 +86,17 @@ public class IncompleteObject<T> {
         buf.get(data, off, len);
 
         off += len;
+    }
+
+    public int readData(long buf, int remaining) {
+        assert data != null;
+
+        final int len = Math.min(data.length - off, remaining);
+
+        PageUtils.getBytes(buf, 0, data, off, len);
+
+        off += len;
+
+        return len;
     }
 }

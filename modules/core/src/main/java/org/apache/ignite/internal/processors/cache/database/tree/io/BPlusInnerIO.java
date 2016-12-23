@@ -157,9 +157,10 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
         long leftChildId,
         L row,
         byte[] rowBytes,
-        long rightChildId
+        long rightChildId,
+        int pageSize
     ) throws IgniteCheckedException {
-        initNewPage(newRootBuf, newRootId);
+        initNewPage(newRootBuf, newRootId, pageSize);
 
         setCount(newRootBuf, 1);
         setLeft(newRootBuf, 0, leftChildId);

@@ -17,6 +17,7 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -88,21 +89,22 @@ public class DataPageIO extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId) {
-        super.initNewPage(buf, pageId);
+    @Override public void initNewPage(long buf, long pageId, int pageSize) {
+        super.initNewPage(buf, pageId, pageSize);
 
-        setEmptyPage(buf);
+        setEmptyPage(buf, pageSize);
         setFreeListPageId(buf, 0L);
     }
 
     /**
      * @param buf Buffer.
+     * @param pageSize Page size.
      */
-    private void setEmptyPage(long buf) {
+    private void setEmptyPage(long buf, int pageSize) {
         setDirectCount(buf, 0);
         setIndirectCount(buf, 0);
-        setFirstEntryOffset(buf, buf.capacity());
-        setRealFreeSpace(buf, buf.capacity() - ITEMS_OFF);
+        setFirstEntryOffset(buf, pageSize, pageSize);
+        setRealFreeSpace(buf, pageSize - ITEMS_OFF, pageSize);
     }
 
     /**
@@ -163,9 +165,10 @@ public class DataPageIO extends PageIO {
     /**
      * @param buf Buffer.
      * @param dataOff Entry data offset.
+     * @param pageSize Page size.
      */
-    private void setFirstEntryOffset(long buf, int dataOff) {
-        assert dataOff >= ITEMS_OFF + ITEM_SIZE && dataOff <= buf.capacity(): dataOff;
+    private void setFirstEntryOffset(long buf, int dataOff, int pageSize) {
+        assert dataOff >= ITEMS_OFF + ITEM_SIZE && dataOff <= pageSize : dataOff;
 
         PageUtils.putShort(buf, FIRST_ENTRY_OFF, (short)dataOff);
     }
@@ -182,8 +185,8 @@ public class DataPageIO extends PageIO {
      * @param buf Buffer.
      * @param freeSpace Free space.
      */
-    private void setRealFreeSpace(long buf, int freeSpace) {
-        assert freeSpace == actualFreeSpace(buf): freeSpace + " != " + actualFreeSpace(buf);
+    private void setRealFreeSpace(long buf, int freeSpace, int pageSize) {
+        assert freeSpace == actualFreeSpace(buf, pageSize): freeSpace + " != " + actualFreeSpace(buf, pageSize);
 
         PageUtils.putShort(buf, FREE_SPACE_OFF, (short)freeSpace);
     }
@@ -218,7 +221,7 @@ public class DataPageIO extends PageIO {
     }
 
     /**
-     * Equivalent for {@link #actualFreeSpace(long)} but reads saved value.
+     * Equivalent for {@link #actualFreeSpace(long, int)} but reads saved value.
      *
      * @param buf Buffer.
      * @return Free space.
@@ -316,9 +319,10 @@ public class DataPageIO extends PageIO {
 
     /**
      * @param buf Buffer.
+     * @param pageSize Page size.
      * @return String representation.
      */
-    public String printPageLayout(long buf) {
+    public String printPageLayout(long buf, int pageSize) {
         int directCnt = getDirectCount(buf);
         int indirectCnt = getIndirectCount(buf);
         int free = getRealFreeSpace(buf);
@@ -337,7 +341,7 @@ public class DataPageIO extends PageIO {
 
             short item = getItem(buf, i);
 
-            if (item < ITEMS_OFF || item >= buf.capacity())
+            if (item < ITEMS_OFF || item >= pageSize)
                 valid = false;
 
             entriesSize += getPageEntrySize(buf, item, SHOW_PAYLOAD_LEN | SHOW_LINK);
@@ -375,7 +379,7 @@ public class DataPageIO extends PageIO {
 
         b.a("][free=").a(free);
 
-        int actualFree = buf.capacity() - ITEMS_OFF - (entriesSize + (directCnt + indirectCnt) * ITEM_SIZE);
+        int actualFree = pageSize - ITEMS_OFF - (entriesSize + (directCnt + indirectCnt) * ITEM_SIZE);
 
         if (free != actualFree) {
             b.a(", actualFree=").a(actualFree);
@@ -395,19 +399,19 @@ public class DataPageIO extends PageIO {
      * @param itemId Fixed item ID (the index used for referencing an entry from the outside).
      * @return Data entry offset in bytes.
      */
-    private int getDataOffset(long buf, int itemId) {
+    private int getDataOffset(long buf, int itemId, int pageSize) {
         assert checkIndex(itemId): itemId;
 
         int directCnt = getDirectCount(buf);
 
-        assert directCnt > 0: "itemId=" + itemId + ", directCnt=" + directCnt + ", page=" + printPageLayout(buf);
+        assert directCnt > 0: "itemId=" + itemId + ", directCnt=" + directCnt + ", page=" + printPageLayout(buf, pageSize);
 
         if (itemId >= directCnt) { // Need to do indirect lookup.
             int indirectCnt = getIndirectCount(buf);
 
             // Must have indirect items here.
             assert indirectCnt > 0: "itemId=" + itemId + ", directCnt=" + directCnt + ", indirectCnt=" + indirectCnt +
-                ", page=" + printPageLayout(buf);
+                ", page=" + printPageLayout(buf, pageSize);
 
             int indirectItemIdx = findIndirectItemIndex(buf, itemId, directCnt, indirectCnt);
 
@@ -449,18 +453,16 @@ public class DataPageIO extends PageIO {
      * @param itemId Item to position on.
      * @return Link to the next fragment or {@code 0} if it is the last fragment or the data row is not fragmented.
      */
-    public long setPositionAndLimitOnPayload(final long buf, final int itemId) {
-        int dataOff = getDataOffset(buf, itemId);
+    public DataPagePayload readPayload(final long buf, final int itemId, final int pageSize) {
+        int dataOff = getDataOffset(buf, itemId, pageSize);
 
         boolean fragmented = isFragmented(buf, dataOff);
         long nextLink = fragmented ? getNextFragmentLink(buf, dataOff) : 0;
         int payloadSize = getPageEntrySize(buf, dataOff, 0);
 
-        buf.position(dataOff + PAYLOAD_LEN_SIZE + (fragmented ? LINK_SIZE : 0));
-
-        buf.limit(buf.position() + payloadSize);
-
-        return nextLink;
+        return new DataPagePayload(dataOff + PAYLOAD_LEN_SIZE + (fragmented ? LINK_SIZE : 0),
+            payloadSize,
+            nextLink);
     }
 
     /**
@@ -593,13 +595,14 @@ public class DataPageIO extends PageIO {
     /**
      * @param buf Buffer.
      * @param itemId Fixed item ID (the index used for referencing an entry from the outside).
+     * @param pageSize Page size.
      * @return Next link for fragmented entries or {@code 0} if none.
      * @throws IgniteCheckedException If failed.
      */
-    public long removeRow(long buf, int itemId) throws IgniteCheckedException {
+    public long removeRow(long buf, int itemId, int pageSize) throws IgniteCheckedException {
         assert checkIndex(itemId) : itemId;
 
-        final int dataOff = getDataOffset(buf, itemId);
+        final int dataOff = getDataOffset(buf, itemId, pageSize);
         final long nextLink = isFragmented(buf, dataOff) ? getNextFragmentLink(buf, dataOff) : 0;
 
         // Record original counts to calculate delta in free space in the end of remove.
@@ -615,7 +618,7 @@ public class DataPageIO extends PageIO {
             assert (indirectCnt == 0 && itemId == 0) ||
                 (indirectCnt == 1 && itemId == itemId(getItem(buf, 1))) : itemId;
 
-            setEmptyPage(buf);
+            setEmptyPage(buf, pageSize);
         }
         else {
             // Get the entry size before the actual remove.
@@ -642,15 +645,15 @@ public class DataPageIO extends PageIO {
 
             if (indirectId == 0) {// For the last direct item with no indirect item.
                 if (dropLast)
-                    moveItems(buf, directCnt, indirectCnt, -1);
+                    moveItems(buf, directCnt, indirectCnt, -1, pageSize);
                 else
                     curIndirectCnt++;
             }
             else {
                 if (dropLast)
-                    moveItems(buf, directCnt, indirectId - directCnt, -1);
+                    moveItems(buf, directCnt, indirectId - directCnt, -1, pageSize);
 
-                moveItems(buf, indirectId + 1, directCnt + indirectCnt - indirectId - 1, dropLast ? -2 : -1);
+                moveItems(buf, indirectId + 1, directCnt + indirectCnt - indirectId - 1, dropLast ? -2 : -1, pageSize);
 
                 if (dropLast)
                     curIndirectCnt--;
@@ -662,8 +665,9 @@ public class DataPageIO extends PageIO {
             assert getIndirectCount(buf) <= getDirectCount(buf);
 
             // Increase free space.
-            setRealFreeSpace(buf, getRealFreeSpace(buf) + rmvEntrySize +
-                ITEM_SIZE * (directCnt - getDirectCount(buf) + indirectCnt - getIndirectCount(buf)));
+            setRealFreeSpace(buf,
+                getRealFreeSpace(buf) + rmvEntrySize + ITEM_SIZE * (directCnt - getDirectCount(buf) + indirectCnt - getIndirectCount(buf)),
+                pageSize);
         }
 
         return nextLink;
@@ -674,12 +678,13 @@ public class DataPageIO extends PageIO {
      * @param idx Index.
      * @param cnt Count.
      * @param step Step.
+     * @param pageSize Page size.
      */
-    private void moveItems(long buf, int idx, int cnt, int step) {
+    private void moveItems(long buf, int idx, int cnt, int step, int pageSize) {
         assert cnt >= 0: cnt;
 
         if (cnt != 0)
-            moveBytes(buf, itemOffset(idx), cnt * ITEM_SIZE, step * ITEM_SIZE);
+            moveBytes(buf, itemOffset(idx), cnt * ITEM_SIZE, step * ITEM_SIZE, pageSize);
     }
 
     /**
@@ -699,12 +704,14 @@ public class DataPageIO extends PageIO {
      * @param buf Buffer.
      * @param row Cache data row.
      * @param rowSize Row size.
+     * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
     public void addRow(
         long buf,
         CacheDataRow row,
-        int rowSize
+        int rowSize,
+        int pageSize
     ) throws IgniteCheckedException {
         assert rowSize <= getFreeSpace(buf): "can't call addRow if not enough space for the whole row";
 
@@ -713,11 +720,11 @@ public class DataPageIO extends PageIO {
         int directCnt = getDirectCount(buf);
         int indirectCnt = getIndirectCount(buf);
 
-        int dataOff = getDataOffsetForWrite(buf, fullEntrySize, directCnt, indirectCnt);
+        int dataOff = getDataOffsetForWrite(buf, fullEntrySize, directCnt, indirectCnt, pageSize);
 
         writeRowData(buf, dataOff, rowSize, row);
 
-        int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff);
+        int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
 
         setLink(row, buf, itemId);
     }
@@ -726,11 +733,14 @@ public class DataPageIO extends PageIO {
      * Adds row to this data page and sets respective link to the given row object.
      *
      * @param buf Buffer.
+     * @param payload Payload.
+     * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
     public void addRow(
         long buf,
-        byte[] payload
+        byte[] payload,
+        int pageSize
     ) throws IgniteCheckedException {
         assert payload.length <= getFreeSpace(buf): "can't call addRow if not enough space for the whole row";
 
@@ -739,11 +749,11 @@ public class DataPageIO extends PageIO {
         int directCnt = getDirectCount(buf);
         int indirectCnt = getIndirectCount(buf);
 
-        int dataOff = getDataOffsetForWrite(buf, fullEntrySize, directCnt, indirectCnt);
+        int dataOff = getDataOffsetForWrite(buf, fullEntrySize, directCnt, indirectCnt, pageSize);
 
         writeRowData(buf, dataOff, payload);
 
-        addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff);
+        addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
     }
 
     /**
@@ -752,6 +762,7 @@ public class DataPageIO extends PageIO {
      * @param directCnt Direct items count.
      * @param indirectCnt Indirect items count.
      * @param dataOff First entry offset.
+     * @param pageSize Page size.
      * @return First entry offset after compaction.
      */
     private int compactIfNeed(
@@ -759,10 +770,11 @@ public class DataPageIO extends PageIO {
         final int entryFullSize,
         final int directCnt,
         final int indirectCnt,
-        int dataOff
+        int dataOff,
+        int pageSize
     ) {
         if (!isEnoughSpace(entryFullSize, dataOff, directCnt, indirectCnt)) {
-            dataOff = compactDataEntries(buf, directCnt);
+            dataOff = compactDataEntries(buf, directCnt, pageSize);
 
             assert isEnoughSpace(entryFullSize, dataOff, directCnt, indirectCnt);
         }
@@ -778,20 +790,27 @@ public class DataPageIO extends PageIO {
      * @param directCnt Direct items count.
      * @param indirectCnt Indirect items count.
      * @param dataOff Data offset.
+     * @param pageSize Page size.
      * @return Item ID.
      */
-    private int addItem(final long buf, final int fullEntrySize, final int directCnt,
-        final int indirectCnt, final int dataOff) {
-        setFirstEntryOffset(buf, dataOff);
+    private int addItem(final long buf,
+        final int fullEntrySize,
+        final int directCnt,
+        final int indirectCnt,
+        final int dataOff,
+        final int pageSize)
+    {
+        setFirstEntryOffset(buf, dataOff, pageSize);
 
-        int itemId = insertItem(buf, dataOff, directCnt, indirectCnt);
+        int itemId = insertItem(buf, dataOff, directCnt, indirectCnt, pageSize);
 
         assert checkIndex(itemId): itemId;
         assert getIndirectCount(buf) <= getDirectCount(buf);
 
         // Update free space. If number of indirect items changed, then we were able to reuse an item slot.
-        setRealFreeSpace(buf, getRealFreeSpace(buf) - fullEntrySize +
-            (getIndirectCount(buf) != indirectCnt ? ITEM_SIZE : 0));
+        setRealFreeSpace(buf,
+            getRealFreeSpace(buf) - fullEntrySize + (getIndirectCount(buf) != indirectCnt ? ITEM_SIZE : 0),
+            pageSize);
 
         return itemId;
     }
@@ -801,13 +820,14 @@ public class DataPageIO extends PageIO {
      * @param fullEntrySize Full entry size.
      * @param directCnt Direct items count.
      * @param indirectCnt Indirect items count.
+     * @param pageSize Page size.
      * @return Offset in the buffer where the entry must be written.
      */
-    private int getDataOffsetForWrite(long buf, int fullEntrySize, int directCnt, int indirectCnt) {
+    private int getDataOffsetForWrite(long buf, int fullEntrySize, int directCnt, int indirectCnt, int pageSize) {
         int dataOff = getFirstEntryOffset(buf);
 
         // Compact if we do not have enough space for entry.
-        dataOff = compactIfNeed(buf, fullEntrySize, directCnt, indirectCnt, dataOff);
+        dataOff = compactIfNeed(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
 
         // We will write data right before the first entry.
         dataOff -= fullEntrySize - ITEM_SIZE;
@@ -826,7 +846,7 @@ public class DataPageIO extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     public int addRowFragment(
-        long buf,
+        ByteBuffer buf,
         CacheDataRow row,
         int written,
         int rowSize
@@ -863,12 +883,13 @@ public class DataPageIO extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     private int addRowFragment(
-        long buf,
+        ByteBuffer buf,
         int written,
         int rowSize,
         long lastLink,
         CacheDataRow row,
-        byte[] payload
+        byte[] payload,
+        int pageSize
     ) throws IgniteCheckedException {
         assert payload == null ^ row == null;
 
@@ -881,18 +902,25 @@ public class DataPageIO extends PageIO {
         int fullEntrySize = getPageEntrySize(payloadSize, SHOW_PAYLOAD_LEN | SHOW_LINK | SHOW_ITEM);
         int dataOff = getDataOffsetForWrite(buf, fullEntrySize, directCnt, indirectCnt);
 
-        PageUtils.putShort(buf, dataOff, (short)(payloadSize | FRAGMENTED_FLAG));
-        PageUtils.putLong(buf, dataOff + 2, lastLink);
+        try {
+            buf.position(dataOff);
 
-        if (payload == null) {
-            int rowOff = rowSize - written - payloadSize;
+            buf.putShort((short) (payloadSize | FRAGMENTED_FLAG));
+            buf.putLong(lastLink);
 
-            writeFragmentData(row, buf + dataOff + 10, rowOff, payloadSize);
+            if (payload == null) {
+                int rowOff = rowSize - written - payloadSize;
+
+                writeFragmentData(row, buf, rowOff, payloadSize);
+            }
+            else
+                buf.put(payload);
         }
-        else
-            PageUtils.putBytes(buf, dataOff + 10, payload);
+        finally {
+            buf.position(0);
+        }
 
-        int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff);
+        int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
 
         if (row != null)
             setLink(row, buf, itemId);
@@ -920,7 +948,7 @@ public class DataPageIO extends PageIO {
      */
     private void writeFragmentData(
         final CacheDataRow row,
-        final long buf,
+        final ByteBuffer buf,
         final int rowOff,
         final int payloadSize
     ) throws IgniteCheckedException {
@@ -946,7 +974,7 @@ public class DataPageIO extends PageIO {
      */
     private int writeFragment(
         final CacheDataRow row,
-        final long buf,
+        final ByteBuffer buf,
         final int rowOff,
         final int payloadSize,
         final EntryPart type,
@@ -1080,9 +1108,10 @@ public class DataPageIO extends PageIO {
      * @param dataOff Data offset.
      * @param directCnt Direct items count.
      * @param indirectCnt Indirect items count.
+     * @param pageSize Page size.
      * @return Item ID (insertion index).
      */
-    private int insertItem(long buf, int dataOff, int directCnt, int indirectCnt) {
+    private int insertItem(long buf, int dataOff, int directCnt, int indirectCnt, int pageSize) {
         if (indirectCnt > 0) {
             // If the first indirect item is on correct place to become the last direct item, do the transition
             // and insert the new item into the free slot which was referenced by this first indirect item.
@@ -1102,7 +1131,7 @@ public class DataPageIO extends PageIO {
         }
 
         // Move all the indirect items forward to make a free slot and insert new item at the end of direct items.
-        moveItems(buf, directCnt, indirectCnt, +1);
+        moveItems(buf, directCnt, indirectCnt, +1, pageSize);
 
         setItem(buf, directCnt, directItemFromOffset(dataOff));
 
@@ -1115,9 +1144,10 @@ public class DataPageIO extends PageIO {
     /**
      * @param buf Buffer.
      * @param directCnt Direct items count.
+     * @param pageSize Page size.
      * @return New first entry offset.
      */
-    private int compactDataEntries(long buf, int directCnt) {
+    private int compactDataEntries(long buf, int directCnt, int pageSize) {
         assert checkCount(directCnt): directCnt;
 
         int[] offs = new int[directCnt];
@@ -1131,7 +1161,7 @@ public class DataPageIO extends PageIO {
         Arrays.sort(offs);
 
         // Move right all of the entries if possible to make the page as compact as possible to its tail.
-        int prevOff = buf.capacity();
+        int prevOff = pageSize;
 
         for (int i = directCnt - 1; i >= 0; i--) {
             int off = offs[i] >>> 8;
@@ -1145,7 +1175,7 @@ public class DataPageIO extends PageIO {
             if (delta != 0) { // Move right.
                 assert delta > 0: delta;
 
-                moveBytes(buf, off, entrySize, delta);
+                moveBytes(buf, off, entrySize, delta, pageSize);
 
                 int itemId = offs[i] & 0xFF;
 
@@ -1164,9 +1194,10 @@ public class DataPageIO extends PageIO {
      * Full-scan free space calculation procedure.
      *
      * @param buf Buffer to scan.
+     * @param pageSize Page size.
      * @return Actual free space in the buffer.
      */
-    private int actualFreeSpace(long buf) {
+    private int actualFreeSpace(long buf, int pageSize) {
         int directCnt = getDirectCount(buf);
 
         int entriesSize = 0;
@@ -1179,7 +1210,7 @@ public class DataPageIO extends PageIO {
             entriesSize += entrySize;
         }
 
-        return buf.capacity() - ITEMS_OFF - entriesSize - (directCnt + getIndirectCount(buf)) * ITEM_SIZE;
+        return pageSize - ITEMS_OFF - entriesSize - (directCnt + getIndirectCount(buf)) * ITEM_SIZE;
     }
 
     /**
@@ -1187,12 +1218,13 @@ public class DataPageIO extends PageIO {
      * @param off Offset.
      * @param cnt Count.
      * @param step Step.
+     * @param pageSize Page size.
      */
-    private void moveBytes(long buf, int off, int cnt, int step) {
+    private void moveBytes(long buf, int off, int cnt, int step, int pageSize) {
         assert step != 0: step;
         assert off + step >= 0;
-        assert off + step + cnt <= buf.capacity() : "[off=" + off + ", step=" + step + ", cnt=" + cnt +
-            ", cap=" + buf.capacity() + ']';
+        assert off + step + cnt <= pageSize : "[off=" + off + ", step=" + step + ", cnt=" + cnt +
+            ", cap=" + pageSize + ']';
 
         PageHandler.copyMemory(buf, buf, off, off + step, cnt);
     }
@@ -1210,26 +1242,36 @@ public class DataPageIO extends PageIO {
         int payloadSize,
         CacheDataRow row
     ) throws IgniteCheckedException {
-        try {
-            buf.position(dataOff);
+        PageUtils.putShort(buf, dataOff, (short)payloadSize);
+        dataOff += 2;
 
-            buf.putShort((short)payloadSize);
+        byte[] bytes = row.key().valueBytes(null);
 
-            boolean ok = row.key().putValue(buf);
+        PageUtils.putInt(buf, dataOff, bytes.length);
+        dataOff += 4;
 
-            assert ok;
+        PageUtils.putBytes(buf, dataOff, bytes);
+        dataOff += bytes.length;
 
-            ok = row.value().putValue(buf);
+        PageUtils.putByte(buf, dataOff, row.key().cacheObjectType());
+        dataOff++;
 
-            assert ok;
+        bytes = row.value().valueBytes(null);
 
-            CacheVersionIO.write(buf, row.version(), false);
+        PageUtils.putInt(buf, dataOff, bytes.length);
+        dataOff += 4;
 
-            buf.putLong(row.expireTime());
-        }
-        finally {
-            buf.position(0);
-        }
+        PageUtils.putBytes(buf, dataOff, bytes);
+        dataOff += bytes.length;
+
+        PageUtils.putByte(buf, dataOff, row.value().cacheObjectType());
+        dataOff++;
+
+        CacheVersionIO.write(buf + dataOff, row.version(), false);
+
+        dataOff += CacheVersionIO.size(row.version(), false);
+
+        PageUtils.putLong(buf, dataOff, row.expireTime());
     }
 
     /**
@@ -1242,15 +1284,9 @@ public class DataPageIO extends PageIO {
         int dataOff,
         byte[] payload
     ) {
-        try {
-            buf.position(dataOff);
+        PageUtils.putShort(buf, dataOff, (short)payload.length);
+        dataOff += 2;
 
-            buf.putShort((short)payload.length);
-
-            buf.put(payload);
-        }
-        finally {
-            buf.position(0);
-        }
+        PageUtils.putBytes(buf, dataOff, payload);
     }
 }
