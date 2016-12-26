@@ -196,11 +196,11 @@ public class CacheDataRowAdapter implements CacheDataRow {
         if (len == 0)
             key = null;
         else {
-            byte[] bytes = PageUtils.getBytes(buf, off, len);
-            off += len;
-
             byte type = PageUtils.getByte(buf, off);
             off++;
+
+            byte[] bytes = PageUtils.getBytes(buf, off, len);
+            off += len;
 
             key = coctx.processor().toKeyCacheObject(coctx, type, bytes);
         }
@@ -217,11 +217,11 @@ public class CacheDataRowAdapter implements CacheDataRow {
         if (len == 0)
             val = null;
         else {
-            byte[] bytes = PageUtils.getBytes(buf, off, len);
-            off += len;
-
             byte type = PageUtils.getByte(buf, off);
             off++;
+
+            byte[] bytes = PageUtils.getBytes(buf, off, len);
+            off += len;
 
             val = coctx.processor().toCacheObject(coctx, type, bytes);
         }

@@ -1282,22 +1282,22 @@ public class DataPageIO extends PageIO {
         PageUtils.putInt(buf, dataOff, bytes.length);
         dataOff += 4;
 
-        PageUtils.putBytes(buf, dataOff, bytes);
-        dataOff += bytes.length;
-
         PageUtils.putByte(buf, dataOff, row.key().cacheObjectType());
         dataOff++;
+
+        PageUtils.putBytes(buf, dataOff, bytes);
+        dataOff += bytes.length;
 
         bytes = row.value().valueBytes(null);
 
         PageUtils.putInt(buf, dataOff, bytes.length);
         dataOff += 4;
 
-        PageUtils.putBytes(buf, dataOff, bytes);
-        dataOff += bytes.length;
-
         PageUtils.putByte(buf, dataOff, row.value().cacheObjectType());
         dataOff++;
+
+        PageUtils.putBytes(buf, dataOff, bytes);
+        dataOff += bytes.length;
 
         CacheVersionIO.write(buf + dataOff, row.version(), false);
 
