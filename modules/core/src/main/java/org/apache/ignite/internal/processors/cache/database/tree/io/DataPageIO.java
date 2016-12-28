@@ -149,8 +149,6 @@ public class DataPageIO extends PageIO {
      * @return Data page entry size.
      */
     private int getPageEntrySize(int payloadLen, int show) {
-        if (payloadLen == 0)
-            System.out.println();
         assert payloadLen > 0 : payloadLen;
 
         int res = payloadLen;
@@ -720,8 +718,6 @@ public class DataPageIO extends PageIO {
         final int rowSize,
         final int pageSize
     ) throws IgniteCheckedException {
-        System.out.println("Start add row " + buf + " " + printPageLayout(buf, pageSize));
-
         assert rowSize <= getFreeSpace(buf): "can't call addRow if not enough space for the whole row";
 
         int fullEntrySize = getPageEntrySize(rowSize, SHOW_PAYLOAD_LEN | SHOW_ITEM);
@@ -736,8 +732,6 @@ public class DataPageIO extends PageIO {
         int itemId = addItem(buf, fullEntrySize, directCnt, indirectCnt, dataOff, pageSize);
 
         setLink(row, buf, itemId);
-
-        System.out.println("Add row " + buf + " " + printPageLayout(buf, pageSize));
     }
 
     /**
@@ -929,18 +923,12 @@ public class DataPageIO extends PageIO {
 
             short p = (short)(payloadSize | FRAGMENTED_FLAG);
 
-            System.out.println("Start add row fragment " + buf + " " + dataOff + " " + payloadSize + " " + p);
-
             buf0.putShort(p);
             buf0.putLong(lastLink);
 
             int rowOff = rowSize - written - payloadSize;
 
-            System.out.println("Size1: " + PageUtils.getShort(buf, dataOff));
-
             writeFragmentData(row, buf0, rowOff, payloadSize);
-
-            System.out.println("Size2: " + PageUtils.getShort(buf, dataOff));
         }
         else {
             PageUtils.putShort(buf, dataOff, (short)(payloadSize | FRAGMENTED_FLAG));
@@ -954,8 +942,6 @@ public class DataPageIO extends PageIO {
 
         if (row != null)
             setLink(row, buf, itemId);
-
-        System.out.println("Add fragment " + buf + " " + printPageLayout(buf, pageSize));
 
         return payloadSize;
     }
@@ -1274,36 +1260,18 @@ public class DataPageIO extends PageIO {
         int payloadSize,
         CacheDataRow row
     ) throws IgniteCheckedException {
-        PageUtils.putShort(buf, dataOff, (short)payloadSize);
-        dataOff += 2;
+        long addr = buf + dataOff;
 
-        byte[] bytes = row.key().valueBytes(null);
+        PageUtils.putShort(addr, 0, (short)payloadSize);
+        addr += 2;
 
-        PageUtils.putInt(buf, dataOff, bytes.length);
-        dataOff += 4;
+        addr += row.key().putValue(addr);
+        addr += row.value().putValue(addr);
 
-        PageUtils.putByte(buf, dataOff, row.key().cacheObjectType());
-        dataOff++;
+        CacheVersionIO.write(addr, row.version(), false);
+        addr += CacheVersionIO.size(row.version(), false);
 
-        PageUtils.putBytes(buf, dataOff, bytes);
-        dataOff += bytes.length;
-
-        bytes = row.value().valueBytes(null);
-
-        PageUtils.putInt(buf, dataOff, bytes.length);
-        dataOff += 4;
-
-        PageUtils.putByte(buf, dataOff, row.value().cacheObjectType());
-        dataOff++;
-
-        PageUtils.putBytes(buf, dataOff, bytes);
-        dataOff += bytes.length;
-
-        CacheVersionIO.write(buf + dataOff, row.version(), false);
-
-        dataOff += CacheVersionIO.size(row.version(), false);
-
-        PageUtils.putLong(buf, dataOff, row.expireTime());
+        PageUtils.putLong(addr, 0, row.expireTime());
     }
 
     /**

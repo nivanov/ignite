@@ -45,7 +45,7 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
     }
 
     /** {@inheritDoc} */
-    @Override public int getMaxCount(long buf, int pageSize) {
+    @Override public int getMaxCount(long pageAddr, int pageSize) {
         // The structure of the page is the following:
         // |ITEMS_OFF|w|A|x|B|y|C|z|
         // where capital letters are data items, lowercase letters are 8 byte page references.
@@ -53,63 +53,63 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @return Page ID.
      */
-    public final long getLeft(long buf, int idx) {
-        return PageUtils.getLong(buf, (offset(idx, SHIFT_LEFT)));
+    public final long getLeft(long pageAddr, int idx) {
+        return PageUtils.getLong(pageAddr, (offset(idx, SHIFT_LEFT)));
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @param pageId Page ID.
      */
-    public final void setLeft(long buf, int idx, long pageId) {
-        PageUtils.putLong(buf, offset(idx, SHIFT_LEFT), pageId);
+    public final void setLeft(long pageAddr, int idx, long pageId) {
+        PageUtils.putLong(pageAddr, offset(idx, SHIFT_LEFT), pageId);
 
-        assert pageId == getLeft(buf, idx);
+        assert pageId == getLeft(pageAddr, idx);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @return Page ID.
      */
-    public final long getRight(long buf, int idx) {
-        return PageUtils.getLong(buf, offset(idx, SHIFT_RIGHT));
+    public final long getRight(long pageAddr, int idx) {
+        return PageUtils.getLong(pageAddr, offset(idx, SHIFT_RIGHT));
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @param pageId Page ID.
      */
-    public final void setRight(long buf, int idx, long pageId) {
-        PageUtils.putLong(buf, offset(idx, SHIFT_RIGHT), pageId);
+    private void setRight(long pageAddr, int idx, long pageId) {
+        PageUtils.putLong(pageAddr, offset(idx, SHIFT_RIGHT), pageId);
 
-        assert pageId == getRight(buf, idx);
+        assert pageId == getRight(pageAddr, idx);
     }
 
     /** {@inheritDoc} */
-    @Override public final void copyItems(long src, long dst, int srcIdx, int dstIdx, int cnt,
+    @Override public final void copyItems(long srcPageAddr, long dstPageAddr, int srcIdx, int dstIdx, int cnt,
         boolean cpLeft) throws IgniteCheckedException {
-        assert srcIdx != dstIdx || src != dst;
+        assert srcIdx != dstIdx || srcPageAddr != dstPageAddr;
 
         cnt *= itemSize + 8; // From items to bytes.
 
         if (dstIdx > srcIdx) {
-            PageHandler.copyMemory(src, dst, offset(srcIdx), offset(dstIdx), cnt);
+            PageHandler.copyMemory(srcPageAddr, dstPageAddr, offset(srcIdx), offset(dstIdx), cnt);
 
             if (cpLeft)
-                PageUtils.putLong(dst, offset(dstIdx, SHIFT_LEFT), PageUtils.getLong(src, (offset(srcIdx, SHIFT_LEFT))));
+                PageUtils.putLong(dstPageAddr, offset(dstIdx, SHIFT_LEFT), PageUtils.getLong(srcPageAddr, (offset(srcIdx, SHIFT_LEFT))));
         }
         else {
             if (cpLeft)
-                PageUtils.putLong(dst, offset(dstIdx, SHIFT_LEFT), PageUtils.getLong(src, (offset(srcIdx, SHIFT_LEFT))));
+                PageUtils.putLong(dstPageAddr, offset(dstIdx, SHIFT_LEFT), PageUtils.getLong(srcPageAddr, (offset(srcIdx, SHIFT_LEFT))));
 
-            PageHandler.copyMemory(src, dst, offset(srcIdx), offset(dstIdx), cnt);
+            PageHandler.copyMemory(srcPageAddr, dstPageAddr, offset(srcIdx), offset(dstIdx), cnt);
         }
     }
 
@@ -148,7 +148,9 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @param newRootId New root ID.
      * @param leftChildId Left child ID.
      * @param row Moved up row.
+     * @param rowBytes Bytes.
      * @param rightChildId Right child ID.
+     * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
     public void initNewRoot(

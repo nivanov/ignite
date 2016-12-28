@@ -18,12 +18,10 @@
 package org.apache.ignite.internal.pagemem.impl;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.mem.DirectMemoryProvider;
 import org.apache.ignite.internal.mem.file.MappedFileMemoryProvider;
@@ -211,17 +209,17 @@ public class PageMemoryNoLoadSelfTest extends GridCommonAbstractTest {
             // Check that updated pages are inaccessible using old IDs.
             for (FullPageId id : old) {
                 try (Page page = mem.page(id.cacheId(), id.pageId())) {
-                    ByteBuffer buf = page.getForWrite();
+                    long pageAddr = page.getForWritePointer();
 
-                    if (buf != null) {
+                    if (pageAddr != 0L) {
                         page.releaseWrite(false);
 
                         fail("Was able to acquire page write lock.");
                     }
 
-                    buf = page.getForRead();
+                    pageAddr = page.getForReadPointer();
 
-                    if (buf != null) {
+                    if (pageAddr != 0) {
                         page.releaseRead();
 
                         fail("Was able to acquire page read lock.");
@@ -303,13 +301,13 @@ public class PageMemoryNoLoadSelfTest extends GridCommonAbstractTest {
     private void readPage(Page page, int expVal) {
         expVal &= 0xFF;
 
-        ByteBuffer bytes = page.getForRead();
+        long pageAddr = page.getForReadPointer();
 
-        assertNotNull(bytes);
+        assert(pageAddr != 0);
 
         try {
             for (int i = PageIO.COMMON_HEADER_END; i < PAGE_SIZE; i++) {
-                int val = bytes.get(i) & 0xFF;
+                int val = PageUtils.getByte(pageAddr, i) & 0xFF;
 
                 assertEquals("Unexpected value at position: " + i, expVal, val);
             }

@@ -17,14 +17,12 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.util;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
 import org.apache.ignite.internal.pagemem.wal.IgniteWriteAheadLogManager;
 import org.apache.ignite.internal.pagemem.wal.record.delta.InitNewPageRecord;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
 import org.apache.ignite.internal.util.GridUnsafe;
-import sun.nio.ch.DirectBuffer;
 
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
@@ -35,7 +33,7 @@ import static java.lang.Boolean.TRUE;
 public abstract class PageHandler<X, R> {
     /** */
     private static final PageHandler<Void, Boolean> NOOP = new PageHandler<Void, Boolean>() {
-        @Override public Boolean run(Page page, PageIO io, long buf, Void arg, int intArg)
+        @Override public Boolean run(Page page, PageIO io, long pageAddr, Void arg, int intArg)
             throws IgniteCheckedException {
             return TRUE;
         }
@@ -44,13 +42,13 @@ public abstract class PageHandler<X, R> {
     /**
      * @param page Page.
      * @param io IO.
-     * @param buf Page buffer.
+     * @param pageAddr Page address.
      * @param arg Argument.
      * @param intArg Argument of type {@code int}.
      * @return Result.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract R run(Page page, PageIO io, long buf, X arg, int intArg)
+    public abstract R run(Page page, PageIO io, long pageAddr, X arg, int intArg)
         throws IgniteCheckedException;
 
     /**
@@ -65,6 +63,7 @@ public abstract class PageHandler<X, R> {
 
     /**
      * @param page Page.
+     * @param lockLsnr Lock listener.
      * @param h Handler.
      * @param arg Argument.
      * @param intArg Argument of type {@code int}.
@@ -80,23 +79,24 @@ public abstract class PageHandler<X, R> {
         int intArg,
         R lockFailed
     ) throws IgniteCheckedException {
-        long buf = readLock(page, lockLsnr);
+        long pageAddr = readLock(page, lockLsnr);
 
-        if (buf == 0L)
+        if (pageAddr == 0L)
             return lockFailed;
 
         try {
-            PageIO io = PageIO.getPageIO(buf);
+            PageIO io = PageIO.getPageIO(pageAddr);
 
-            return h.run(page, io, buf, arg, intArg);
+            return h.run(page, io, pageAddr, arg, intArg);
         }
         finally {
-            readUnlock(page, buf, lockLsnr);
+            readUnlock(page, pageAddr, lockLsnr);
         }
     }
 
     /**
      * @param page Page.
+     * @param lockLsnr Lock listener.
      * @param h Handler.
      * @param arg Argument.
      * @param intArg Argument of type {@code int}.
@@ -119,6 +119,7 @@ public abstract class PageHandler<X, R> {
      * @param page Page.
      * @param lockLsnr Lock listener.
      * @param init IO for new page initialization or {@code null} if it is an existing page.
+     * @param wal WAL manager.
      * @throws IgniteCheckedException If failed.
      */
     public static void initPage(
@@ -135,25 +136,25 @@ public abstract class PageHandler<X, R> {
     /**
      * @param page Page.
      * @param lockLsnr Lock listener.
-     * @return Byte buffer or {@code null} if failed to lock due to recycling.
+     * @return Page address or {@code 0} if failed to lock due to recycling.
      */
     public static long readLock(Page page, PageLockListener lockLsnr) {
         lockLsnr.onBeforeReadLock(page);
 
-        long buf = page.getForReadPointer();
+        long pageAddr = page.getForReadPointer();
 
-        lockLsnr.onReadLock(page, buf);
+        lockLsnr.onReadLock(page, pageAddr);
 
-        return buf;
+        return pageAddr;
     }
 
     /**
      * @param page Page.
-     * @param buf Page buffer.
+     * @param pageAddr Page address.
      * @param lockLsnr Lock listener.
      */
-    public static void readUnlock(Page page, long buf, PageLockListener lockLsnr) {
-        lockLsnr.onReadUnlock(page, buf);
+    public static void readUnlock(Page page, long pageAddr, PageLockListener lockLsnr) {
+        lockLsnr.onReadUnlock(page, pageAddr);
 
         page.releaseRead();
     }
@@ -162,16 +163,16 @@ public abstract class PageHandler<X, R> {
      * @param page Page.
      * @param lockLsnr Lock listener.
      * @param tryLock Only try to lock without waiting.
-     * @return Byte buffer or {@code null} if failed to lock due to recycling.
+     * @return Page address or {@code 0} if failed to lock due to recycling.
      */
     public static long writeLock(Page page, PageLockListener lockLsnr, boolean tryLock) {
         lockLsnr.onBeforeWriteLock(page);
 
-        long buf = tryLock ? page.tryGetForWritePointer() : page.getForWritePointer();
+        long pageAddr = tryLock ? page.tryGetForWritePointer() : page.getForWritePointer();
 
-        lockLsnr.onWriteLock(page, buf);
+        lockLsnr.onWriteLock(page, pageAddr);
 
-        return buf;
+        return pageAddr;
     }
 
     /**
@@ -191,6 +192,7 @@ public abstract class PageHandler<X, R> {
      * @param lockLsnr Lock listener.
      * @param h Handler.
      * @param init IO for new page initialization or {@code null} if it is an existing page.
+     * @param wal WAL manager.
      * @param arg Argument.
      * @param intArg Argument of type {@code int}.
      * @param lockFailed Result in case of lock failure due to page recycling.
@@ -207,9 +209,9 @@ public abstract class PageHandler<X, R> {
         int intArg,
         R lockFailed
     ) throws IgniteCheckedException {
-        long buf = writeLock(page, lockLsnr, false);
+        long pageAddr = writeLock(page, lockLsnr, false);
 
-        if (buf == 0L)
+        if (pageAddr == 0L)
             return lockFailed;
 
         R res;
@@ -218,19 +220,19 @@ public abstract class PageHandler<X, R> {
 
         try {
             if (init != null) // It is a new page and we have to initialize it.
-                doInitPage(page, buf, init, wal);
+                doInitPage(page, pageAddr, init, wal);
             else
-                init = PageIO.getPageIO(buf);
+                init = PageIO.getPageIO(pageAddr);
 
-            res = h.run(page, init, buf, arg, intArg);
+            res = h.run(page, init, pageAddr, arg, intArg);
 
             ok = true;
         }
         finally {
-            assert PageIO.getCrc(buf) == 0; //TODO GG-11480
+            assert PageIO.getCrc(pageAddr) == 0; //TODO GG-11480
 
             if (h.releaseAfterWrite(page, arg, intArg))
-                writeUnlock(page, buf, lockLsnr, ok);
+                writeUnlock(page, pageAddr, lockLsnr, ok);
         }
 
         return res;
@@ -238,22 +240,22 @@ public abstract class PageHandler<X, R> {
 
     /**
      * @param page Page.
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param init Initial IO.
      * @param wal Write ahead log.
      * @throws IgniteCheckedException If failed.
      */
     private static void doInitPage(
         Page page,
-        long buf,
+        long pageAddr,
         PageIO init,
         IgniteWriteAheadLogManager wal
     ) throws IgniteCheckedException {
-        assert PageIO.getCrc(buf) == 0; //TODO GG-11480
+        assert PageIO.getCrc(pageAddr) == 0; //TODO GG-11480
 
         long pageId = page.id();
 
-        init.initNewPage(buf, pageId, page.size());
+        init.initNewPage(pageAddr, pageId, page.size());
 
         // Here we should never write full page, because it is known to be new.
         page.fullPageWalRecordPolicy(FALSE);
@@ -275,30 +277,11 @@ public abstract class PageHandler<X, R> {
             (page.fullPageWalRecordPolicy() == FALSE || page.isDirty());
     }
 
-    /**
-     * @param src Source.
-     * @param dst Destination.
-     * @param srcOff Source offset in bytes.
-     * @param dstOff Destination offset in bytes.
-     * @param cnt Bytes count to copy.
-     */
-    public static void copyMemory(ByteBuffer src, ByteBuffer dst, long srcOff, long dstOff, long cnt) {
-        byte[] srcArr = src.hasArray() ? src.array() : null;
-        byte[] dstArr = dst.hasArray() ? dst.array() : null;
-        long srcArrOff = src.hasArray() ? src.arrayOffset() + GridUnsafe.BYTE_ARR_OFF : 0;
-        long dstArrOff = dst.hasArray() ? dst.arrayOffset() + GridUnsafe.BYTE_ARR_OFF : 0;
-
-        long srcPtr = src.isDirect() ? ((DirectBuffer)src).address() : 0;
-        long dstPtr = dst.isDirect() ? ((DirectBuffer)dst).address() : 0;
-
-        GridUnsafe.copyMemory(srcArr, srcPtr + srcArrOff + srcOff, dstArr, dstPtr + dstArrOff + dstOff, cnt);
+    public static void copyMemory(long srcAddr, long dstAddr, long srcOff, long dstOff, long cnt) {
+        GridUnsafe.copyMemory(null, srcAddr + srcOff, null, dstAddr + dstOff, cnt);
     }
 
-    public static void copyMemory(long src, long dst, long srcOff, long dstOff, long cnt) {
-        GridUnsafe.copyMemory(null, src + srcOff, null, dst + dstOff, cnt);
-    }
-
-    public static void zeroMemory(long buf, int off, int len) {
-        GridUnsafe.setMemory(buf + off, len, (byte)0);
+    public static void zeroMemory(long addr, int off, int len) {
+        GridUnsafe.setMemory(addr + off, len, (byte)0);
     }
 }

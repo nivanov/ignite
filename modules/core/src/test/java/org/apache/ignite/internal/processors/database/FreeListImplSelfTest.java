@@ -32,6 +32,7 @@ import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.mem.unsafe.UnsafeMemoryProvider;
 import org.apache.ignite.internal.pagemem.PageIdAllocator;
 import org.apache.ignite.internal.pagemem.PageMemory;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.pagemem.impl.PageMemoryNoStoreImpl;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
@@ -237,31 +238,13 @@ public class FreeListImplSelfTest extends GridCommonAbstractTest {
     protected void checkInsertDeleteSingleThreaded(int pageSize) throws Exception {
         FreeList list = createFreeList(pageSize);
 
-        long seed = 1482500591478L;//System.currentTimeMillis();
-
-        Random rnd = new Random(seed);
-
-        System.out.println("Seed " + seed);
+        Random rnd = new Random();
 
         Map<Long, TestDataRow> stored = new HashMap<>();
 
-        {
-            int keySize = 749;
-            int valSize = 2426;
-
-            TestDataRow row = new TestDataRow(keySize, valSize);
-
-            list.insertDataRow(row);
-
-            assertTrue(row.link() != 0L);
-
-            TestDataRow old = stored.put(row.link(), row);
-
-            assertNull(old);
-        }
-        {
-            int keySize = 472;
-            int valSize = 83;
+        for (int i = 0; i < 100; i++) {
+            int keySize = rnd.nextInt(pageSize * 3 / 2) + 10;
+            int valSize = rnd.nextInt(pageSize * 5 / 2) + 10;
 
             TestDataRow row = new TestDataRow(keySize, valSize);
 
@@ -274,73 +257,54 @@ public class FreeListImplSelfTest extends GridCommonAbstractTest {
             assertNull(old);
         }
 
+        boolean grow = true;
 
+        for (int i = 0; i < 1_000_000; i++) {
+            if (grow) {
+                if (stored.size() > 20_000) {
+                    grow = false;
 
-//        for (int i = 0; i < 100; i++) {
-//            int keySize = rnd.nextInt(pageSize * 3 / 2) + 10;
-//            int valSize = rnd.nextInt(pageSize * 5 / 2) + 10;
-//
-//            System.out.println("Add " + keySize + " " + valSize);
-//
-//            TestDataRow row = new TestDataRow(keySize, valSize);
-//
-//            list.insertDataRow(row);
-//
-//            assertTrue(row.link() != 0L);
-//
-//            TestDataRow old = stored.put(row.link(), row);
-//
-//            assertNull(old);
-//        }
+                    info("Shrink... [" + stored.size() + ']');
+                }
+            }
+            else {
+                if (stored.size() < 1_000) {
+                    grow = true;
 
-//        boolean grow = true;
-//
-//        for (int i = 0; i < 1_000_000; i++) {
-//            if (grow) {
-//                if (stored.size() > 20_000) {
-//                    grow = false;
-//
-//                    info("Shrink... [" + stored.size() + ']');
-//                }
-//            }
-//            else {
-//                if (stored.size() < 1_000) {
-//                    grow = true;
-//
-//                    info("Grow... [" + stored.size() + ']');
-//                }
-//            }
-//
-//            boolean insert = rnd.nextInt(100) < 70 == grow;
-//
-//            if (insert) {
-//                int keySize = rnd.nextInt(pageSize * 3 / 2) + 10;
-//                int valSize = rnd.nextInt(pageSize * 3 / 2) + 10;
-//
-//                TestDataRow row = new TestDataRow(keySize, valSize);
-//
-//                list.insertDataRow(row);
-//
-//                assertTrue(row.link() != 0L);
-//
-//                TestDataRow old = stored.put(row.link(), row);
-//
-//                assertNull(old);
-//            }
-//            else {
-//                Iterator<TestDataRow> it = stored.values().iterator();
-//
-//                if (it.hasNext()) {
-//                    TestDataRow row = it.next();
-//
-//                    TestDataRow rmvd = stored.remove(row.link);
-//
-//                    assertTrue(rmvd == row);
-//
-//                    list.removeDataRowByLink(row.link);
-//                }
-//            }
-//        }
+                    info("Grow... [" + stored.size() + ']');
+                }
+            }
+
+            boolean insert = rnd.nextInt(100) < 70 == grow;
+
+            if (insert) {
+                int keySize = rnd.nextInt(pageSize * 3 / 2) + 10;
+                int valSize = rnd.nextInt(pageSize * 3 / 2) + 10;
+
+                TestDataRow row = new TestDataRow(keySize, valSize);
+
+                list.insertDataRow(row);
+
+                assertTrue(row.link() != 0L);
+
+                TestDataRow old = stored.put(row.link(), row);
+
+                assertNull(old);
+            }
+            else {
+                Iterator<TestDataRow> it = stored.values().iterator();
+
+                if (it.hasNext()) {
+                    TestDataRow row = it.next();
+
+                    TestDataRow rmvd = stored.remove(row.link);
+
+                    assertTrue(rmvd == row);
+
+                    list.removeDataRowByLink(row.link);
+                }
+            }
+        }
     }
 
     /**
@@ -492,6 +456,13 @@ public class FreeListImplSelfTest extends GridCommonAbstractTest {
             buf.put(data);
 
             return true;
+        }
+
+        /** {@inheritDoc} */
+        @Override public int putValue(long addr) throws IgniteCheckedException {
+            PageUtils.putBytes(addr, 0, data);
+
+            return data.length;
         }
 
         /** {@inheritDoc} */

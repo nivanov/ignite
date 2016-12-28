@@ -28,89 +28,109 @@ public class PageUtils {
     /** */
     private static final Unsafe unsafe = GridUnsafe.UNSAFE;
 
-    public static byte getByte(long buf, int off) {
-        assert buf > 0 : buf;
+    /**
+     * @param addr Start address. 
+     * @param off Offset.
+     * @return Byte value from given address.
+     */
+    public static byte getByte(long addr, int off) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getByte(buf + off);
+        return unsafe.getByte(addr + off);
     }
 
-    public static byte[] getBytes(long buf, int off, int len) {
-        assert buf > 0 : buf;
+    /**
+     * @param addr Start address.
+     * @param off Offset.
+     * @param len Bytes length.
+     * @return Bytes from given address.
+     */
+    public static byte[] getBytes(long addr, int off, int len) {
+        assert addr > 0 : addr;
         assert off >= 0;
         assert len >= 0;
 
         byte[] bytes = new byte[len];
 
-        unsafe.copyMemory(null, buf + off, bytes, GridUnsafe.BYTE_ARR_OFF, len);
+        unsafe.copyMemory(null, addr + off, bytes, GridUnsafe.BYTE_ARR_OFF, len);
 
         return bytes;
     }
 
-    public static void getBytes(long src, int srcOff, byte[] dst, int dstOff, int len) {
-        assert src > 0;
+    public static void getBytes(long srcAddr, int srcOff, byte[] dst, int dstOff, int len) {
+        assert srcAddr > 0;
         assert srcOff > 0;
         assert dst != null;
         assert dstOff >= 0;
         assert len >= 0;
 
-        unsafe.copyMemory(null, src + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
+        unsafe.copyMemory(null, srcAddr + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
     }
 
-    public static short getShort(long buf, int off) {
-        assert buf > 0 : buf;
+    public static short getShort(long addr, int off) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getShort(buf + off);
+        return unsafe.getShort(addr + off);
     }
 
-    public static int getInt(long buf, int off) {
-        assert buf > 0 : buf;
+    public static int getInt(long addr, int off) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getInt(buf + off);
+        return unsafe.getInt(addr + off);
     }
 
-    public static long getLong(long buf, int off) {
-        assert buf > 0 : buf;
+    public static long getLong(long addr, int off) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getLong(buf + off);
+        return unsafe.getLong(addr + off);
     }
 
-    public static void putBytes(long buf, int off, byte[] bytes) {
-        assert buf > 0 : buf;
+    public static void putBytes(long addr, int off, byte[] bytes) {
+        assert addr > 0 : addr;
         assert off >= 0;
         assert bytes != null;
 
-        unsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF, null, buf + off, bytes.length);
+        unsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF, null, addr + off, bytes.length);
     }
 
-    public static void putByte(long buf, int off, byte v) {
-        assert buf > 0 : buf;
+    public static void putBytes(long addr, int off, byte[] bytes, int bytesOff) {
+        assert addr > 0 : addr;
         assert off >= 0;
+        assert bytes != null;
+        assert bytesOff >= 0 && bytesOff < bytes.length : bytesOff;
 
-        unsafe.putByte(buf + off, v);
+        unsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF + bytesOff, null, addr + off, bytes.length - bytesOff);
     }
 
-    public static void putShort(long buf, int off, short v) {
-        assert buf > 0 : buf;
+    public static void putByte(long addr, int off, byte v) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putShort(buf + off, v);
+        unsafe.putByte(addr + off, v);
     }
 
-    public static void putInt(long buf, int off, int v) {
-        assert buf > 0 : buf;
+    public static void putShort(long addr, int off, short v) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putInt(buf + off, v);
+        unsafe.putShort(addr + off, v);
     }
 
-    public static void putLong(long buf, int off, long v) {
-        assert buf > 0 : buf;
+    public static void putInt(long addr, int off, int v) {
+        assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putLong(buf + off, v);
+        unsafe.putInt(addr + off, v);
+    }
+
+    public static void putLong(long addr, int off, long v) {
+        assert addr > 0 : addr;
+        assert off >= 0;
+
+        unsafe.putLong(addr + off, v);
     }
 }

@@ -198,12 +198,12 @@ public class MetadataStorage implements MetaStore {
             int shift = 0;
 
             // Compare index names.
-            final byte len = PageUtils.getByte(off, shift);
+            final byte len = PageUtils.getByte(buf, off + shift);
 
             shift += BYTE_LEN;
 
             for (int i = 0; i < len && i < row.idxName.length; i++) {
-                final int cmp = Byte.compare(PageUtils.getByte(off, i + shift), row.idxName[i]);
+                final int cmp = Byte.compare(PageUtils.getByte(buf, off + i + shift), row.idxName[i]);
 
                 if (cmp != 0)
                     return cmp;
@@ -253,17 +253,19 @@ public class MetadataStorage implements MetaStore {
      */
     private static void storeRow(
         final long buf,
-        final int off,
+        int off,
         final IndexItem row
     ) {
         // Index name length.
         PageUtils.putByte(buf, off, (byte)row.idxName.length);
+        off++;
 
         // Index name.
-        PageUtils.putBytes(buf, off + 1, row.idxName);
+        PageUtils.putBytes(buf, off, row.idxName);
+        off += row.idxName.length;
 
         // Page ID.
-        PageUtils.putLong(buf, off + 1 + row.idxName.length, row.pageId);
+        PageUtils.putLong(buf, off, row.pageId);
     }
 
     /**
@@ -276,19 +278,23 @@ public class MetadataStorage implements MetaStore {
      */
     private static void storeRow(
         final long dst,
-        final int dstOff,
+        int dstOff,
         final long src,
-        final int srcOff
+        int srcOff
     ) {
         // Index name length.
         final byte len = PageUtils.getByte(src, srcOff);
+        srcOff++;
 
         PageUtils.putByte(dst, dstOff, len);
+        dstOff++;
 
-        PageHandler.copyMemory(src, srcOff + 1, dst, dstOff + 1, len);
+        PageHandler.copyMemory(src, srcOff, dst, dstOff, len);
+        srcOff += len;
+        dstOff += len;
 
         // Page ID.
-        PageUtils.putLong(dst, dstOff + 1 + len, PageUtils.getLong(src, srcOff + 1 + len));
+        PageUtils.putLong(dst, dstOff, PageUtils.getLong(src, srcOff));
     }
 
     /**
@@ -298,15 +304,17 @@ public class MetadataStorage implements MetaStore {
      * @param off Offset in buf.
      * @return Read row.
      */
-    private static IndexItem readRow(final long buf, final int off) {
+    private static IndexItem readRow(final long buf, int off) {
         // Index name length.
-        final int len = PageUtils.getByte(buf, 0) & 0xFF;
+        final int len = PageUtils.getByte(buf, off) & 0xFF;
+        off++;
 
         // Index name.
-        final byte[] idxName = PageUtils.getBytes(buf, 1, len);
+        final byte[] idxName = PageUtils.getBytes(buf, off, len);
+        off += len;
 
         // Page ID.
-        final long pageId = PageUtils.getLong(buf, off + 1 + len);
+        final long pageId = PageUtils.getLong(buf, off);
 
         return new IndexItem(idxName, pageId);
     }

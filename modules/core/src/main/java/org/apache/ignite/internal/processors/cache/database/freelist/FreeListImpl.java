@@ -73,26 +73,26 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
     /** */
     private final PageHandler<CacheDataRow, Integer> writeRow =
         new PageHandler<CacheDataRow, Integer>() {
-            @Override public Integer run(Page page, PageIO iox, long buf, CacheDataRow row, int written)
+            @Override public Integer run(Page page, PageIO iox, long pageAddr, CacheDataRow row, int written)
                 throws IgniteCheckedException {
                 DataPageIO io = (DataPageIO)iox;
 
                 int rowSize = getRowSize(row);
-                int oldFreeSpace = io.getFreeSpace(buf);
+                int oldFreeSpace = io.getFreeSpace(pageAddr);
 
                 assert oldFreeSpace > 0 : oldFreeSpace;
 
                 // If the full row does not fit into this page write only a fragment.
-                written = (written == 0 && oldFreeSpace >= rowSize) ? addRow(page, buf, io, row, rowSize):
-                    addRowFragment(page, buf, io, row, written, rowSize);
+                written = (written == 0 && oldFreeSpace >= rowSize) ? addRow(page, pageAddr, io, row, rowSize):
+                    addRowFragment(page, pageAddr, io, row, written, rowSize);
 
                 // Reread free space after update.
-                int newFreeSpace = io.getFreeSpace(buf);
+                int newFreeSpace = io.getFreeSpace(pageAddr);
 
                 if (newFreeSpace > MIN_PAGE_FREE_SPACE) {
                     int bucket = bucket(newFreeSpace, false);
 
-                    put(null, page, buf, bucket);
+                    put(null, page, pageAddr, bucket);
                 }
 
                 // Avoid boxing with garbage generation for usual case.
@@ -159,7 +159,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
 
                 int payloadSize = io.addRowFragment(buf, row, written, rowSize, pageSize());
 
-                assert payloadSize > 0: payloadSize;
+                assert payloadSize > 0 : payloadSize;
 
                 if (isWalDeltaRecordNeeded(wal, page)) {
                     // TODO This record must contain only a reference to a logical WAL record with the actual data.
@@ -178,15 +178,15 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
 
     /** */
     private final PageHandler<Void, Long> rmvRow = new PageHandler<Void, Long>() {
-        @Override public Long run(Page page, PageIO iox, long buf, Void arg, int itemId)
+        @Override public Long run(Page page, PageIO iox, long pageAddr, Void arg, int itemId)
             throws IgniteCheckedException {
             DataPageIO io = (DataPageIO)iox;
 
-            int oldFreeSpace = io.getFreeSpace(buf);
+            int oldFreeSpace = io.getFreeSpace(pageAddr);
 
             assert oldFreeSpace >= 0: oldFreeSpace;
 
-            long nextLink = io.removeRow(buf, itemId, pageSize());
+            long nextLink = io.removeRow(pageAddr, itemId, pageSize());
 
             if (isWalDeltaRecordNeeded(wal, page))
                 wal.log(new DataPageRemoveRecord(cacheId, page.id(), itemId));
@@ -199,7 +199,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
 //                    put(null, page, buf, REUSE_BUCKET);
 //            }
 
-            int newFreeSpace = io.getFreeSpace(buf);
+            int newFreeSpace = io.getFreeSpace(pageAddr);
 
             if (newFreeSpace > MIN_PAGE_FREE_SPACE) {
                 int newBucket = bucket(newFreeSpace, false);
@@ -209,12 +209,12 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
 
                     if (oldBucket != newBucket) {
                         // It is possible that page was concurrently taken for put, in this case put will handle bucket change.
-                        if (removeDataPage(page, buf, io, oldBucket))
-                            put(null, page, buf, newBucket);
+                        if (removeDataPage(page, pageAddr, io, oldBucket))
+                            put(null, page, pageAddr, newBucket);
                     }
                 }
                 else
-                    put(null, page, buf, newBucket);
+                    put(null, page, pageAddr, newBucket);
             }
 
             // For common case boxed 0L will be cached inside of Long, so no garbage will be produced.

@@ -66,11 +66,6 @@ public interface Page extends AutoCloseable {
     /**
      * @return ByteBuffer for modifying the page of {@code null} if failed to get write lock.
      */
-    @Nullable public ByteBuffer tryGetForWrite();
-
-    /**
-     * @return ByteBuffer for modifying the page of {@code null} if failed to get write lock.
-     */
     public long tryGetForWritePointer();
 
     /**

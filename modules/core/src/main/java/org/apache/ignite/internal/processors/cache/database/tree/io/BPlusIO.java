@@ -72,56 +72,56 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId, int pageSize) {
-        super.initNewPage(buf, pageId, pageSize);
+    @Override public void initNewPage(long pageAddr, long pageId, int pageSize) {
+        super.initNewPage(pageAddr, pageId, pageSize);
 
-        setCount(buf, 0);
-        setForward(buf, 0);
-        setRemoveId(buf, 0);
+        setCount(pageAddr, 0);
+        setForward(pageAddr, 0);
+        setRemoveId(pageAddr, 0);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Forward page ID.
      */
-    public final long getForward(long buf) {
-        return PageUtils.getLong(buf, FORWARD_OFF);
+    public final long getForward(long pageAddr) {
+        return PageUtils.getLong(pageAddr, FORWARD_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param pageId Forward page ID.
      */
-    public final void setForward(long buf, long pageId) {
-        PageUtils.putLong(buf, FORWARD_OFF, pageId);
+    public final void setForward(long pageAddr, long pageId) {
+        PageUtils.putLong(pageAddr, FORWARD_OFF, pageId);
 
-        assert getForward(buf) == pageId;
+        assert getForward(pageAddr) == pageId;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Remove ID.
      */
-    public final long getRemoveId(long buf) {
-        return PageUtils.getLong(buf, REMOVE_ID_OFF);
+    public final long getRemoveId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, REMOVE_ID_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param rmvId Remove ID.
      */
-    public final void setRemoveId(long buf, long rmvId) {
-        PageUtils.putLong(buf, REMOVE_ID_OFF, rmvId);
+    public final void setRemoveId(long pageAddr, long rmvId) {
+        PageUtils.putLong(pageAddr, REMOVE_ID_OFF, rmvId);
 
-        assert getRemoveId(buf) == rmvId;
+        assert getRemoveId(pageAddr) == rmvId;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Items count in the page.
      */
-    public final int getCount(long buf) {
-        int cnt = PageUtils.getShort(buf, CNT_OFF) & 0xFFFF;
+    public final int getCount(long pageAddr) {
+        int cnt = PageUtils.getShort(pageAddr, CNT_OFF) & 0xFFFF;
 
         assert cnt >= 0: cnt;
 
@@ -129,15 +129,15 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param cnt Count.
      */
-    public final void setCount(long buf, int cnt) {
+    public final void setCount(long pageAddr, int cnt) {
         assert cnt >= 0: cnt;
 
-        PageUtils.putShort(buf, CNT_OFF, (short)cnt);
+        PageUtils.putShort(pageAddr, CNT_OFF, (short)cnt);
 
-        assert getCount(buf) == cnt;
+        assert getCount(pageAddr) == cnt;
     }
 
     /**
@@ -157,27 +157,28 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
+     * @param pageSize Page size.
      * @return Max items count.
      */
-    public abstract int getMaxCount(long buf, int pageSize);
+    public abstract int getMaxCount(long pageAddr, int pageSize);
 
     /**
      * Store the needed info about the row in the page. Leaf and inner pages can store different info.
      *
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @param row Lookup or full row.
      * @param rowBytes Row bytes.
      * @throws IgniteCheckedException If failed.
      */
-    public final void store(long buf, int idx, L row, byte[] rowBytes) throws IgniteCheckedException {
+    public final void store(long pageAddr, int idx, L row, byte[] rowBytes) throws IgniteCheckedException {
         int off = offset(idx);
 
         if (rowBytes == null)
-            storeByOffset(buf, off, row);
+            storeByOffset(pageAddr, off, row);
         else
-            putBytes(buf, off, rowBytes);
+            putBytes(pageAddr, off, rowBytes);
     }
 
     /**
@@ -189,50 +190,50 @@ public abstract class BPlusIO<L> extends PageIO {
     /**
      * Store the needed info about the row in the page. Leaf and inner pages can store different info.
      *
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param off Offset in bytes.
      * @param row Lookup or full row.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void storeByOffset(long buf, int off, L row) throws IgniteCheckedException;
+    public abstract void storeByOffset(long pageAddr, int off, L row) throws IgniteCheckedException;
 
     /**
      * Store row info from the given source.
      *
-     * @param dst Destination buffer
+     * @param dstPageAddr Destination page address.
      * @param dstIdx Destination index.
      * @param srcIo Source IO.
-     * @param src Source buffer.
+     * @param srcPageAddr Source page address.
      * @param srcIdx Source index.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void store(long dst, int dstIdx, BPlusIO<L> srcIo, long src, int srcIdx)
+    public abstract void store(long dstPageAddr, int dstIdx, BPlusIO<L> srcIo, long srcPageAddr, int srcIdx)
         throws IgniteCheckedException;
 
     /**
      * Get lookup row.
      *
      * @param tree Tree.
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @return Lookup row.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract L getLookupRow(BPlusTree<L, ?> tree, long buf, int idx) throws IgniteCheckedException;
+    public abstract L getLookupRow(BPlusTree<L, ?> tree, long pageAddr, int idx) throws IgniteCheckedException;
 
     /**
      * Copy items from source buffer to destination buffer.
      * Both pages must be of the same type and the same version.
      *
-     * @param src Source buffer.
-     * @param dst Destination buffer.
+     * @param srcPageAddr Source page address.
+     * @param dstPageAddr Destination page address.
      * @param srcIdx Source begin index.
      * @param dstIdx Destination begin index.
      * @param cnt Items count.
      * @param cpLeft Copy leftmost link (makes sense only for inner pages).
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void copyItems(long src, long dst, int srcIdx, int dstIdx, int cnt, boolean cpLeft)
+    public abstract void copyItems(long srcPageAddr, long dstPageAddr, int srcIdx, int dstIdx, int cnt, boolean cpLeft)
         throws IgniteCheckedException;
 
     // Methods for B+Tree logic.
@@ -289,50 +290,51 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param mid Bisection index.
      * @param fwdId New forward page ID.
      */
-    public void splitExistingPage(long buf, int mid, long fwdId) {
-        setCount(buf, mid);
-        setForward(buf, fwdId);
+    public void splitExistingPage(long pageAddr, int mid, long fwdId) {
+        setCount(pageAddr, mid);
+        setForward(pageAddr, fwdId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @param cnt Count.
      * @throws IgniteCheckedException If failed.
      */
-    public void remove(long buf, int idx, int cnt) throws IgniteCheckedException {
+    public void remove(long pageAddr, int idx, int cnt) throws IgniteCheckedException {
         cnt--;
 
-        copyItems(buf, buf, idx + 1, idx, cnt - idx, false);
-        setCount(buf, cnt);
+        copyItems(pageAddr, pageAddr, idx + 1, idx, cnt - idx, false);
+        setCount(pageAddr, cnt);
     }
 
     /**
      * @param prntIo Parent IO.
-     * @param prnt Parent buffer.
+     * @param prntPageAddr Parent page address.
      * @param prntIdx Split key index in parent.
-     * @param left Left buffer.
-     * @param right Right buffer.
+     * @param leftPageAddr Left page address.
+     * @param rightPageAddr Right page address.
      * @param emptyBranch We are merging an empty branch.
+     * @param pageSize Page size.
      * @return {@code false} If we were not able to merge.
      * @throws IgniteCheckedException If failed.
      */
     public boolean merge(
         BPlusIO<L> prntIo,
-        long prnt,
+        long prntPageAddr,
         int prntIdx,
-        long left,
-        long right,
+        long leftPageAddr,
+        long rightPageAddr,
         boolean emptyBranch,
         int pageSize
     ) throws IgniteCheckedException {
-        int prntCnt = prntIo.getCount(prnt);
-        int leftCnt = getCount(left);
-        int rightCnt = getCount(right);
+        int prntCnt = prntIo.getCount(prntPageAddr);
+        int leftCnt = getCount(leftPageAddr);
+        int rightCnt = getCount(rightPageAddr);
 
         int newCnt = leftCnt + rightCnt;
 
@@ -340,13 +342,13 @@ public abstract class BPlusIO<L> extends PageIO {
         if (!isLeaf() && !emptyBranch)
             newCnt++;
 
-        if (newCnt > getMaxCount(left, pageSize)) {
+        if (newCnt > getMaxCount(leftPageAddr, pageSize)) {
             assert !emptyBranch;
 
             return false;
         }
 
-        setCount(left, newCnt);
+        setCount(leftPageAddr, newCnt);
 
         // Move down split key in inner pages.
         if (!isLeaf() && !emptyBranch) {
@@ -354,19 +356,19 @@ public abstract class BPlusIO<L> extends PageIO {
 
             // We can be sure that we have enough free space to store split key here,
             // because we've done remove already and did not release child locks.
-            store(left, leftCnt, prntIo, prnt, prntIdx);
+            store(leftPageAddr, leftCnt, prntIo, prntPageAddr, prntIdx);
 
             leftCnt++;
         }
 
-        copyItems(right, left, 0, leftCnt, rightCnt, !emptyBranch);
-        setForward(left, getForward(right));
+        copyItems(rightPageAddr, leftPageAddr, 0, leftCnt, rightCnt, !emptyBranch);
+        setForward(leftPageAddr, getForward(rightPageAddr));
 
-        long rmvId = getRemoveId(right);
+        long rmvId = getRemoveId(rightPageAddr);
 
         // Need to have maximum remove ID.
-        if (rmvId > getRemoveId(left))
-            setRemoveId(left, rmvId);
+        if (rmvId > getRemoveId(leftPageAddr))
+            setRemoveId(leftPageAddr, rmvId);
 
         return true;
     }

@@ -35,16 +35,16 @@ public abstract class BPlusLeafIO<L> extends BPlusIO<L> {
     }
 
     /** {@inheritDoc} */
-    @Override public int getMaxCount(long buf, int pageSize) {
+    @Override public int getMaxCount(long pageAddr, int pageSize) {
         return (pageSize - ITEMS_OFF) / itemSize;
     }
 
     /** {@inheritDoc} */
-    @Override public final void copyItems(long src, long dst, int srcIdx, int dstIdx, int cnt,
+    @Override public final void copyItems(long srcPageAddr, long dstPageAddr, int srcIdx, int dstIdx, int cnt,
         boolean cpLeft) throws IgniteCheckedException {
-        assert srcIdx != dstIdx || src != dst;
+        assert srcIdx != dstIdx || srcPageAddr != dstPageAddr;
 
-        PageHandler.copyMemory(src, dst, offset(srcIdx), offset(dstIdx), cnt * itemSize);
+        PageHandler.copyMemory(srcPageAddr, dstPageAddr, offset(srcIdx), offset(dstIdx), cnt * itemSize);
     }
 
     /** {@inheritDoc} */

@@ -67,6 +67,8 @@ public interface CacheObject extends Message {
      */
     public boolean putValue(ByteBuffer buf) throws IgniteCheckedException;
 
+    public int putValue(long addr) throws IgniteCheckedException;
+
     /**
      * @param buf Buffer to write value to.
      * @param off Offset in source binary data.

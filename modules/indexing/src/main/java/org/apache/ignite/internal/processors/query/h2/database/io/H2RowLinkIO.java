@@ -17,8 +17,6 @@
 
 package org.apache.ignite.internal.processors.query.h2.database.io;
 
-import java.nio.ByteBuffer;
-
 /**
  * Row link IO.
  */
@@ -28,5 +26,5 @@ public interface H2RowLinkIO {
      * @param idx Index.
      * @return Row link.
      */
-    public long getLink(ByteBuffer buf, int idx);
+    public long getLink(long buf, int idx);
 }

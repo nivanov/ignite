@@ -47,9 +47,6 @@ public class PageNoStoreImpl implements Page {
     /** */
     private PageMemoryNoStoreImpl pageMem;
 
-    /** */
-    private final ByteBuffer buf;
-
     /** Page for memory restore */
     private final boolean noTagCheck;
 
@@ -67,8 +64,6 @@ public class PageNoStoreImpl implements Page {
         this.cacheId = cacheId;
         this.pageId = pageId;
         this.noTagCheck = noTagCheck;
-
-        buf = pageMem.wrapPointer(absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD, pageMem.pageSize());
     }
 
     /** {@inheritDoc} */
@@ -92,10 +87,7 @@ public class PageNoStoreImpl implements Page {
 
     /** {@inheritDoc} */
     @Override public ByteBuffer getForRead() {
-        if (pageMem.readLockPage(absPtr, PageIdUtils.tag(pageId)))
-            return reset(buf.asReadOnlyBuffer());
-
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
@@ -113,15 +105,7 @@ public class PageNoStoreImpl implements Page {
 
     /** {@inheritDoc} */
     @Override public ByteBuffer getForWrite() {
-        int tag =  noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS :  PageIdUtils.tag(pageId);
-        boolean locked = pageMem.writeLockPage(absPtr, tag);
-
-        if (!locked && !noTagCheck)
-            return null;
-
-        assert locked;
-
-        return reset(buf);
+        throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
@@ -145,16 +129,6 @@ public class PageNoStoreImpl implements Page {
             return pointer();
 
         return 0L;
-    }
-
-    /** {@inheritDoc} */
-    @Override public ByteBuffer tryGetForWrite() {
-        int tag = noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS :  PageIdUtils.tag(pageId);
-
-        if (pageMem.tryWriteLockPage(absPtr, tag))
-            return reset(buf);
-
-        return null;
     }
 
     /** {@inheritDoc} */

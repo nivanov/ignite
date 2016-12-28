@@ -131,7 +131,7 @@ public abstract class DataStructure implements PageLockListener {
 
     /**
      * @param page Page.
-     * @return Buffer.
+     * @return Page address.
      */
     protected final long tryWriteLock(Page page) {
         return PageHandler.writeLock(page, this, true);
@@ -140,7 +140,7 @@ public abstract class DataStructure implements PageLockListener {
 
     /**
      * @param page Page.
-     * @return Buffer.
+     * @return Page address.
      */
     protected final long writeLock(Page page) {
         return PageHandler.writeLock(page, this, false);
@@ -148,16 +148,16 @@ public abstract class DataStructure implements PageLockListener {
 
     /**
      * @param page Page.
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param dirty Dirty page.
      */
-    protected final void writeUnlock(Page page, long buf, boolean dirty) {
-        PageHandler.writeUnlock(page, buf, this, dirty);
+    protected final void writeUnlock(Page page, long pageAddr, boolean dirty) {
+        PageHandler.writeUnlock(page, pageAddr, this, dirty);
     }
 
     /**
      * @param page Page.
-     * @return Buffer.
+     * @return Page address.
      */
     protected final long readLock(Page page) {
         return PageHandler.readLock(page, this);

@@ -70,6 +70,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
         // Link can be 0 here.
         this.link = link;
     }
+
     /**
      * Read row from data pages.
      *

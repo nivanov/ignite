@@ -24,6 +24,7 @@ import java.io.ObjectOutput;
 import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.GridDirectTransient;
+import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.util.tostring.GridToStringInclude;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.plugin.extensions.communication.MessageReader;
@@ -74,6 +75,28 @@ public abstract class CacheObjectAdapter implements CacheObject, Externalizable 
         assert valBytes != null : "Value bytes must be initialized before object is stored";
 
         return putValue(buf, 0, objectPutSize(valBytes.length));
+    }
+
+    /** {@inheritDoc} */
+    @Override public int putValue(long addr) throws IgniteCheckedException {
+        assert valBytes != null : "Value bytes must be initialized before object is stored";
+
+        return putValue(addr, cacheObjectType(), valBytes, 0);
+    }
+
+    public static int putValue(long addr, byte type, byte[] valBytes, int valOff) {
+        int off = 0;
+
+        PageUtils.putInt(addr, off, valBytes.length);
+        off += 4;
+
+        PageUtils.putByte(addr, off, type);
+        off++;
+
+        PageUtils.putBytes(addr, off, valBytes, valOff);
+        off += valBytes.length - valOff;
+
+        return off;
     }
 
     /** {@inheritDoc} */
