@@ -131,20 +131,20 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
 
     /** {@inheritDoc} */
     @Override public void insert(
-        long buf,
+        long pageAddr,
         int idx,
         L row,
         byte[] rowBytes,
         long rightId
     ) throws IgniteCheckedException {
-        super.insert(buf, idx, row, rowBytes, rightId);
+        super.insert(pageAddr, idx, row, rowBytes, rightId);
 
         // Setup reference to the right page on split.
-        setRight(buf, idx, rightId);
+        setRight(pageAddr, idx, rightId);
     }
 
     /**
-     * @param newRootBuf New root buffer.
+     * @param newRootPageAddr New root page address.
      * @param newRootId New root ID.
      * @param leftChildId Left child ID.
      * @param row Moved up row.
@@ -154,7 +154,7 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
      * @throws IgniteCheckedException If failed.
      */
     public void initNewRoot(
-        long newRootBuf,
+        long newRootPageAddr,
         long newRootId,
         long leftChildId,
         L row,
@@ -162,11 +162,11 @@ public abstract class BPlusInnerIO<L> extends BPlusIO<L> {
         long rightChildId,
         int pageSize
     ) throws IgniteCheckedException {
-        initNewPage(newRootBuf, newRootId, pageSize);
+        initNewPage(newRootPageAddr, newRootId, pageSize);
 
-        setCount(newRootBuf, 1);
-        setLeft(newRootBuf, 0, leftChildId);
-        store(newRootBuf, 0, row, rowBytes);
-        setRight(newRootBuf, 0, rightChildId);
+        setCount(newRootPageAddr, 1);
+        setLeft(newRootPageAddr, 0, leftChildId);
+        store(newRootPageAddr, 0, row, rowBytes);
+        setRight(newRootPageAddr, 0, rightChildId);
     }
 }

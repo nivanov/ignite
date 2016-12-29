@@ -139,7 +139,7 @@ public abstract class PagesList extends DataStructure {
         if (metaPageId != 0L) {
             if (initNew) {
                 try (Page page = page(metaPageId)) {
-                    initPage(page, this, PagesListMetaIO.VERSIONS.latest(), wal);
+                    initPage(pageMem, page, this, PagesListMetaIO.VERSIONS.latest(), wal);
                 }
             }
             else {
@@ -338,7 +338,7 @@ public abstract class PagesList extends DataStructure {
         long pageId = reuse ? allocatePage(null) : allocatePageNoReuse();
 
         try (Page page = page(pageId)) {
-            initPage(page, this, PagesListNodeIO.VERSIONS.latest(), wal);
+            initPage(pageMem, page, this, PagesListNodeIO.VERSIONS.latest(), wal);
         }
 
         Stripe stripe = new Stripe(pageId);
@@ -855,7 +855,7 @@ public abstract class PagesList extends DataStructure {
                             if (prevId != 0L) {
                                 try (Page prev = page(prevId)) {
                                     // Lock pages from next to previous.
-                                    Boolean ok = writePage(prev, this, cutTail, null, bucket, FALSE);
+                                    Boolean ok = writePage(pageMem, prev, this, cutTail, null, bucket, FALSE);
 
                                     assert ok == TRUE : ok;
                                 }
@@ -874,7 +874,7 @@ public abstract class PagesList extends DataStructure {
 
                             try (Page prev = page(prevId)) {
                                 // Lock pages from next to previous.
-                                Boolean ok = writePage(prev, this, cutTail, null, bucket, FALSE);
+                                Boolean ok = writePage(pageMem, prev, this, cutTail, null, bucket, FALSE);
 
                                 assert ok == TRUE : ok;
                             }
@@ -1012,7 +1012,7 @@ public abstract class PagesList extends DataStructure {
 
         if (prevId != 0L) { // Cut tail if we have a previous page.
             try (Page prev = page(prevId)) {
-                Boolean ok = writePage(prev, this, cutTail, null, bucket, FALSE);
+                Boolean ok = writePage(pageMem, prev, this, cutTail, null, bucket, FALSE);
 
                 assert ok == TRUE: ok; // Because we keep lock on current tail and do a world consistency check.
             }

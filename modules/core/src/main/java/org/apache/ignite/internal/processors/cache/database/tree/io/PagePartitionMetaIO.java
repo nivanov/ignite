@@ -42,13 +42,13 @@ public class PagePartitionMetaIO extends PageMetaIO {
     );
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId, int pageSize) {
-        super.initNewPage(buf, pageId, pageSize);
+    @Override public void initNewPage(long pageAddr, long pageId, int pageSize) {
+        super.initNewPage(pageAddr, pageId, pageSize);
 
-        setSize(buf, 0);
-        setUpdateCounter(buf, 0);
-        setGlobalRemoveId(buf, 0);
-        setPartitionState(buf, (byte)-1);
+        setSize(pageAddr, 0);
+        setUpdateCounter(pageAddr, 0);
+        setGlobalRemoveId(pageAddr, 0);
+        setPartitionState(pageAddr, (byte)-1);
     }
 
     /**
@@ -59,65 +59,65 @@ public class PagePartitionMetaIO extends PageMetaIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Partition size.
      */
-    public long getSize(long buf) {
-        return PageUtils.getLong(buf, SIZE_OFF);
+    public long getSize(long pageAddr) {
+        return PageUtils.getLong(pageAddr, SIZE_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param size Partition size.
      */
-    public void setSize(long buf, long size) {
-        PageUtils.putLong(buf, SIZE_OFF, size);
+    public void setSize(long pageAddr, long size) {
+        PageUtils.putLong(pageAddr, SIZE_OFF, size);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Partition update counter.
      */
-    public long getUpdateCounter(long buf) {
-        return PageUtils.getLong(buf, UPDATE_CNTR_OFF);
+    public long getUpdateCounter(long pageAddr) {
+        return PageUtils.getLong(pageAddr, UPDATE_CNTR_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param cntr Partition update counter.
      */
-    public void setUpdateCounter(long buf, long cntr) {
-        PageUtils.putLong(buf, UPDATE_CNTR_OFF, cntr);
+    public void setUpdateCounter(long pageAddr, long cntr) {
+        PageUtils.putLong(pageAddr, UPDATE_CNTR_OFF, cntr);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Global remove ID.
      */
-    public long getGlobalRemoveId(long buf) {
-        return PageUtils.getLong(buf, GLOBAL_RMV_ID_OFF);
+    public long getGlobalRemoveId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, GLOBAL_RMV_ID_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param rmvId Global remove ID.
      */
-    public void setGlobalRemoveId(long buf, long rmvId) {
-        PageUtils.putLong(buf, GLOBAL_RMV_ID_OFF, rmvId);
+    public void setGlobalRemoveId(long pageAddr, long rmvId) {
+        PageUtils.putLong(pageAddr, GLOBAL_RMV_ID_OFF, rmvId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public byte getPartitionState(long buf) {
-        return PageUtils.getByte(buf, PARTITION_STATE_OFF);
+    public byte getPartitionState(long pageAddr) {
+        return PageUtils.getByte(pageAddr, PARTITION_STATE_OFF);
     }
 
     /**
-     * @param buf
-     * @param state
+     * @param pageAddr Page address
+     * @param state State.
      */
-    public void setPartitionState(long buf, byte state) {
-        PageUtils.putByte(buf, PARTITION_STATE_OFF, state);
+    public void setPartitionState(long pageAddr, byte state) {
+        PageUtils.putByte(pageAddr, PARTITION_STATE_OFF, state);
     }
 }

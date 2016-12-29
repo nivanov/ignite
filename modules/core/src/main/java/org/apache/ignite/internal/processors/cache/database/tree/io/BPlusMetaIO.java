@@ -37,45 +37,48 @@ public class BPlusMetaIO extends PageIO {
     /**
      * @param ver Page format version.
      */
-    protected BPlusMetaIO(int ver) {
+    private BPlusMetaIO(int ver) {
         super(T_BPLUS_META, ver);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAdrr Page address.
      * @param rootId Root page ID.
+     * @param pageSize Page size.
      */
-    public void initRoot(int pageSize, long buf, long rootId) {
-        setLevelsCount(pageSize, buf, 1);
-        setFirstPageId(buf, 0, rootId);
+    public void initRoot(long pageAdrr, long rootId, int pageSize) {
+        setLevelsCount(pageAdrr, 1, pageSize);
+        setFirstPageId(pageAdrr, 0, rootId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Number of levels in this tree.
      */
-    public int getLevelsCount(long buf) {
-        return PageUtils.getByte(buf, LVLS_OFF);
+    public int getLevelsCount(long pageAddr) {
+        return PageUtils.getByte(pageAddr, LVLS_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
+     * @param pageSize Page size.
      * @return Max levels possible for this page size.
      */
-    public int getMaxLevels(int pageSize, long buf) {
+    private int getMaxLevels(long pageAddr, int pageSize) {
         return (pageSize - REFS_OFF) / 8;
     }
 
     /**
-     * @param buf  Buffer.
+     * @param pageAddr Page address.
      * @param lvls Number of levels in this tree.
+     * @param pageSize Page size.
      */
-    public void setLevelsCount(int pageSize, long buf, int lvls) {
-        assert lvls >= 0 && lvls <= getMaxLevels(pageSize, buf) : lvls;
+    private void setLevelsCount(long pageAddr, int lvls, int pageSize) {
+        assert lvls >= 0 && lvls <= getMaxLevels(pageAddr, pageSize) : lvls;
 
-        PageUtils.putByte(buf, LVLS_OFF, (byte)lvls);
+        PageUtils.putByte(pageAddr, LVLS_OFF, (byte)lvls);
 
-        assert getLevelsCount(buf) == lvls;
+        assert getLevelsCount(pageAddr) == lvls;
     }
 
     /**
@@ -100,7 +103,7 @@ public class BPlusMetaIO extends PageIO {
      * @param lvl    Level.
      * @param pageId Page ID.
      */
-    public void setFirstPageId(long buf, int lvl, long pageId) {
+    private void setFirstPageId(long buf, int lvl, long pageId) {
         assert lvl >= 0 && lvl < getLevelsCount(buf);
 
         PageUtils.putLong(buf, offset(lvl), pageId);
@@ -123,20 +126,22 @@ public class BPlusMetaIO extends PageIO {
     /**
      * @param buf Buffer.
      * @param rootPageId New root page ID.
+     * @param pageSize Page size.
      */
-    public void addRoot(int pageSize, long buf, long rootPageId) {
+    public void addRoot(long buf, long rootPageId, int pageSize) {
         int lvl = getLevelsCount(buf);
 
-        setLevelsCount(pageSize, buf, lvl + 1);
+        setLevelsCount(buf, lvl + 1, pageSize);
         setFirstPageId(buf, lvl, rootPageId);
     }
 
     /**
      * @param buf Buffer.
+     * @param pageSize Page size.
      */
-    public void cutRoot(int pageSize, long buf) {
+    public void cutRoot(long buf, int pageSize) {
         int lvl = getRootLevel(buf);
 
-        setLevelsCount(pageSize, buf, lvl); // Decrease tree height.
+        setLevelsCount(buf, lvl, pageSize); // Decrease tree height.
     }
 }

@@ -164,38 +164,39 @@ public abstract class PageIO {
     }
 
     /**
+     * @param pageAddr Page addres.
      * @return Page type.
      */
-    public static int getType(long buf) {
-        return PageUtils.getShort(buf, TYPE_OFF) & 0xFFFF;
+    public static int getType(long pageAddr) {
+        return PageUtils.getShort(pageAddr, TYPE_OFF) & 0xFFFF;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param type Type.
      */
-    public static void setType(long buf, int type) {
-        PageUtils.putShort(buf, TYPE_OFF, (short)type);
+    public static void setType(long pageAddr, int type) {
+        PageUtils.putShort(pageAddr, TYPE_OFF, (short)type);
 
-        assert getType(buf) == type;
+        assert getType(pageAddr) == type;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Version.
      */
-    public static int getVersion(long buf) {
-        return PageUtils.getShort(buf, VER_OFF) & 0xFFFF;
+    public static int getVersion(long pageAddr) {
+        return PageUtils.getShort(pageAddr, VER_OFF) & 0xFFFF;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param ver Version.
      */
-    public static void setVersion(long buf, int ver) {
-        PageUtils.putShort(buf, VER_OFF, (short)ver);
+    private static void setVersion(long pageAddr, int ver) {
+        PageUtils.putShort(pageAddr, VER_OFF, (short)ver);
 
-        assert getVersion(buf) == ver;
+        assert getVersion(pageAddr) == ver;
     }
 
     /**
@@ -207,29 +208,29 @@ public abstract class PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param pageId Page ID.
      */
-    public static void setPageId(long buf, long pageId) {
-        PageUtils.putLong(buf, PAGE_ID_OFF, pageId);
+    public static void setPageId(long pageAddr, long pageId) {
+        PageUtils.putLong(pageAddr, PAGE_ID_OFF, pageId);
 
-        assert getPageId(buf) == pageId;
+        assert getPageId(pageAddr) == pageId;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Checksum.
      */
-    public static int getCrc(long buf) {
-        return PageUtils.getInt(buf, CRC_OFF);
+    public static int getCrc(long pageAddr) {
+        return PageUtils.getInt(pageAddr, CRC_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param crc Checksum.
      */
-    public static void setCrc(long buf, int crc) {
-        PageUtils.putInt(buf, CRC_OFF, crc);
+    public static void setCrc(long pageAddr, int crc) {
+        PageUtils.putInt(pageAddr, CRC_OFF, crc);
     }
 
     /**
@@ -272,18 +273,19 @@ public abstract class PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param pageId Page ID.
+     * @param pageSize Page size.
      */
-    public void initNewPage(long buf, long pageId, int pageSize) {
-        setType(buf, getType());
-        setVersion(buf, getVersion());
-        setPageId(buf, pageId);
-        setCrc(buf, 0);
+    public void initNewPage(long pageAddr, long pageId, int pageSize) {
+        setType(pageAddr, getType());
+        setVersion(pageAddr, getVersion());
+        setPageId(pageAddr, pageId);
+        setCrc(pageAddr, 0);
 
-        PageUtils.putLong(buf, RESERVED_1_OFF, 0L);
-        PageUtils.putLong(buf, RESERVED_2_OFF, 0L);
-        PageUtils.putLong(buf, RESERVED_3_OFF, 0L);
+        PageUtils.putLong(pageAddr, RESERVED_1_OFF, 0L);
+        PageUtils.putLong(pageAddr, RESERVED_2_OFF, 0L);
+        PageUtils.putLong(pageAddr, RESERVED_3_OFF, 0L);
     }
 
     /** {@inheritDoc} */
@@ -292,13 +294,13 @@ public abstract class PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return IO.
      * @throws IgniteCheckedException If failed.
      */
-    public static <Q extends PageIO> Q getPageIO(long buf) throws IgniteCheckedException {
-        int type = getType(buf);
-        int ver = getVersion(buf);
+    public static <Q extends PageIO> Q getPageIO(long pageAddr) throws IgniteCheckedException {
+        int type = getType(pageAddr);
+        int ver = getVersion(pageAddr);
 
         return getPageIO(type, ver);
     }
@@ -339,13 +341,13 @@ public abstract class PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return IO for either inner or leaf B+Tree page.
      * @throws IgniteCheckedException If failed.
      */
-    public static <Q extends BPlusIO<?>> Q getBPlusIO(long buf) throws IgniteCheckedException {
-        int type = getType(buf);
-        int ver = getVersion(buf);
+    public static <Q extends BPlusIO<?>> Q getBPlusIO(long pageAddr) throws IgniteCheckedException {
+        int type = getType(pageAddr);
+        int ver = getVersion(pageAddr);
 
         return getBPlusIO(type, ver);
     }

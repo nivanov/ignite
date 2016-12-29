@@ -86,11 +86,6 @@ public class PageNoStoreImpl implements Page {
     }
 
     /** {@inheritDoc} */
-    @Override public ByteBuffer getForRead() {
-        throw new UnsupportedOperationException();
-    }
-
-    /** {@inheritDoc} */
     @Override public long getForReadPointer() {
         if (pageMem.readLockPage(absPtr, PageIdUtils.tag(pageId)))
             return pointer();
@@ -151,11 +146,6 @@ public class PageNoStoreImpl implements Page {
     /** {@inheritDoc} */
     @Override public Boolean fullPageWalRecordPolicy() {
         return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override public int size() {
-        return pageMem.pageSize();
     }
 
     /** {@inheritDoc} */

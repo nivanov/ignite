@@ -30,20 +30,34 @@ public class DataPagePayload {
     /** */
     private final long nextLink;
 
+    /**
+     * @param off Offset.
+     * @param payloadSize Payload size.
+     * @param nextLink Next link.
+     */
     DataPagePayload(int off, int payloadSize, long nextLink) {
         this.off = off;
         this.payloadSize = payloadSize;
         this.nextLink = nextLink;
     }
 
+    /**
+     * @return Offset.
+     */
     public int offset() {
         return off;
     }
 
+    /**
+     * @return Payload size.
+     */
     public int payloadSize() {
         return payloadSize;
     }
 
+    /**
+     * @return Next link.
+     */
     public long nextLink() {
         return nextLink;
     }

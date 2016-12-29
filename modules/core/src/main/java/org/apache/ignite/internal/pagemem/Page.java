@@ -39,11 +39,6 @@ public interface Page extends AutoCloseable {
     public FullPageId fullId();
 
     /**
-     * @return ByteBuffer for modifying the page.
-     */
-    public ByteBuffer getForRead();
-
-    /**
      * @return Pointer for modifying the page.
      */
     public long getForReadPointer();
@@ -89,8 +84,6 @@ public interface Page extends AutoCloseable {
      * @see #fullPageWalRecordPolicy(Boolean)
      */
     public Boolean fullPageWalRecordPolicy();
-
-    public int size();
 
     public ByteBuffer pageBuffer();
 

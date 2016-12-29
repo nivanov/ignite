@@ -222,7 +222,7 @@ public abstract class BPlusIO<L> extends PageIO {
     public abstract L getLookupRow(BPlusTree<L, ?> tree, long pageAddr, int idx) throws IgniteCheckedException;
 
     /**
-     * Copy items from source buffer to destination buffer.
+     * Copy items from source page to destination page.
      * Both pages must be of the same type and the same version.
      *
      * @param srcPageAddr Source page address.
@@ -239,54 +239,54 @@ public abstract class BPlusIO<L> extends PageIO {
     // Methods for B+Tree logic.
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @param row Row to insert.
      * @param rowBytes Row bytes.
      * @param rightId Page ID which will be to the right child for the inserted item.
      * @throws IgniteCheckedException If failed.
      */
-    public void insert(long buf, int idx, L row, byte[] rowBytes, long rightId)
+    public void insert(long pageAddr, int idx, L row, byte[] rowBytes, long rightId)
         throws IgniteCheckedException {
-        int cnt = getCount(buf);
+        int cnt = getCount(pageAddr);
 
         // Move right all the greater elements to make a free slot for a new row link.
-        copyItems(buf, buf, idx, idx + 1, cnt - idx, false);
+        copyItems(pageAddr, pageAddr, idx, idx + 1, cnt - idx, false);
 
-        setCount(buf, cnt + 1);
+        setCount(pageAddr, cnt + 1);
 
-        store(buf, idx, row, rowBytes);
+        store(pageAddr, idx, row, rowBytes);
     }
 
     /**
-     * @param buf Splitting buffer.
+     * @param pageAddr Splitting page address.
      * @param fwdId Forward page ID.
-     * @param fwdBuf Forward buffer.
+     * @param fwdPageAddr Forward page address.
      * @param mid Bisection index.
      * @param cnt Initial elements count in the page being split.
      * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
     public void splitForwardPage(
-        long buf,
+        long pageAddr,
         long fwdId,
-        long fwdBuf,
+        long fwdPageAddr,
         int mid,
         int cnt,
         int pageSize
     ) throws IgniteCheckedException {
-        initNewPage(fwdBuf, fwdId, pageSize);
+        initNewPage(fwdPageAddr, fwdId, pageSize);
 
         cnt -= mid;
 
-        copyItems(buf, fwdBuf, mid, 0, cnt, true);
+        copyItems(pageAddr, fwdPageAddr, mid, 0, cnt, true);
 
-        setCount(fwdBuf, cnt);
-        setForward(fwdBuf, getForward(buf));
+        setCount(fwdPageAddr, cnt);
+        setForward(fwdPageAddr, getForward(pageAddr));
 
         // Copy remove ID to make sure that if inner remove touched this page, then retry
         // will happen even for newly allocated forward page.
-        setRemoveId(fwdBuf, getRemoveId(buf));
+        setRemoveId(fwdPageAddr, getRemoveId(pageAddr));
     }
 
     /**
@@ -374,11 +374,11 @@ public abstract class BPlusIO<L> extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
-     * @param pos Position in buffer.
+     * @param pageAddr Page address.
+     * @param pos Position in page.
      * @param bytes Bytes.
      */
-    private static void putBytes(long buf, int pos, byte[] bytes) {
-        PageUtils.putBytes(buf, pos, bytes);
+    private static void putBytes(long pageAddr, int pos, byte[] bytes) {
+        PageUtils.putBytes(pageAddr, pos, bytes);
     }
 }

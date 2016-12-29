@@ -19,6 +19,7 @@ package org.apache.ignite.internal.processors.cache.database.tree.util;
 
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
+import org.apache.ignite.internal.pagemem.PageMemory;
 import org.apache.ignite.internal.pagemem.wal.IgniteWriteAheadLogManager;
 import org.apache.ignite.internal.pagemem.wal.record.delta.InitNewPageRecord;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
@@ -95,6 +96,7 @@ public abstract class PageHandler<X, R> {
     }
 
     /**
+     * @param pageMem Page memory.
      * @param page Page.
      * @param lockLsnr Lock listener.
      * @param h Handler.
@@ -105,6 +107,7 @@ public abstract class PageHandler<X, R> {
      * @throws IgniteCheckedException If failed.
      */
     public static <X, R> R writePage(
+        PageMemory pageMem,
         Page page,
         PageLockListener lockLsnr,
         PageHandler<X, R> h,
@@ -112,10 +115,11 @@ public abstract class PageHandler<X, R> {
         int intArg,
         R lockFailed
     ) throws IgniteCheckedException {
-        return writePage(page, lockLsnr, h, null, null, arg, intArg, lockFailed);
+        return writePage(pageMem, page, lockLsnr, h, null, null, arg, intArg, lockFailed);
     }
 
     /**
+     * @param pageMem Page memory.
      * @param page Page.
      * @param lockLsnr Lock listener.
      * @param init IO for new page initialization or {@code null} if it is an existing page.
@@ -123,12 +127,13 @@ public abstract class PageHandler<X, R> {
      * @throws IgniteCheckedException If failed.
      */
     public static void initPage(
+        PageMemory pageMem,
         Page page,
         PageLockListener lockLsnr,
         PageIO init,
         IgniteWriteAheadLogManager wal
     ) throws IgniteCheckedException {
-        Boolean res = writePage(page, lockLsnr, NOOP, init, wal, null, 0, FALSE);
+        Boolean res = writePage(pageMem, page, lockLsnr, NOOP, init, wal, null, 0, FALSE);
 
         assert res == TRUE : res; // It must be newly allocated page, can't be recycled.
     }
@@ -200,6 +205,7 @@ public abstract class PageHandler<X, R> {
      * @throws IgniteCheckedException If failed.
      */
     public static <X, R> R writePage(
+        PageMemory pageMem,
         Page page,
         PageLockListener lockLsnr,
         PageHandler<X, R> h,
@@ -220,7 +226,7 @@ public abstract class PageHandler<X, R> {
 
         try {
             if (init != null) // It is a new page and we have to initialize it.
-                doInitPage(page, pageAddr, init, wal);
+                doInitPage(pageMem, page, pageAddr, init, wal);
             else
                 init = PageIO.getPageIO(pageAddr);
 
@@ -239,6 +245,7 @@ public abstract class PageHandler<X, R> {
     }
 
     /**
+     * @param pageMem Page memory.
      * @param page Page.
      * @param pageAddr Page address.
      * @param init Initial IO.
@@ -246,6 +253,7 @@ public abstract class PageHandler<X, R> {
      * @throws IgniteCheckedException If failed.
      */
     private static void doInitPage(
+        PageMemory pageMem,
         Page page,
         long pageAddr,
         PageIO init,
@@ -255,7 +263,7 @@ public abstract class PageHandler<X, R> {
 
         long pageId = page.id();
 
-        init.initNewPage(pageAddr, pageId, page.size());
+        init.initNewPage(pageAddr, pageId, pageMem.pageSize());
 
         // Here we should never write full page, because it is known to be new.
         page.fullPageWalRecordPolicy(FALSE);

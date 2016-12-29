@@ -68,122 +68,122 @@ public class PageMetaIO extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId, int pageSize) {
-        super.initNewPage(buf, pageId, pageSize);
+    @Override public void initNewPage(long pageAddr, long pageId, int pageSize) {
+        super.initNewPage(pageAddr, pageId, pageSize);
 
-        setTreeRoot(buf, 0);
-        setReuseListRoot(buf, 0);
-        setLastSuccessfulFullBackupId(buf, 0);
-        setLastSuccessfulBackupId(buf, 0);
-        setNextBackupId(buf, 1);
-        setLastAllocatedIndex(buf, 0);
-        setCandidateAllocatedIndex(buf, 0);
+        setTreeRoot(pageAddr, 0);
+        setReuseListRoot(pageAddr, 0);
+        setLastSuccessfulFullBackupId(pageAddr, 0);
+        setLastSuccessfulBackupId(pageAddr, 0);
+        setNextBackupId(pageAddr, 1);
+        setLastAllocatedIndex(pageAddr, 0);
+        setCandidateAllocatedIndex(pageAddr, 0);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Meta store root page.
      */
-    public long getTreeRoot(long buf) {
-        return PageUtils.getLong(buf, METASTORE_ROOT_OFF);
+    public long getTreeRoot(long pageAddr) {
+        return PageUtils.getLong(pageAddr, METASTORE_ROOT_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param metastoreRoot metastore root
      */
-    public void setTreeRoot(long buf, long metastoreRoot) {
-        PageUtils.putLong(buf, METASTORE_ROOT_OFF, metastoreRoot);
+    public void setTreeRoot(long pageAddr, long metastoreRoot) {
+        PageUtils.putLong(pageAddr, METASTORE_ROOT_OFF, metastoreRoot);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Reuse list root page.
      */
-    public long getReuseListRoot(long buf) {
-        return PageUtils.getLong(buf, REUSE_LIST_ROOT_OFF);
+    public long getReuseListRoot(long pageAddr) {
+        return PageUtils.getLong(pageAddr, REUSE_LIST_ROOT_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param pageId Root page ID.
      */
-    public void setReuseListRoot(long buf, long pageId) {
-        PageUtils.putLong(buf, REUSE_LIST_ROOT_OFF, pageId);
+    public void setReuseListRoot(long pageAddr, long pageId) {
+        PageUtils.putLong(pageAddr, REUSE_LIST_ROOT_OFF, pageId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param lastSuccessfulBackupId Last successful backup id.
      */
-    public void setLastSuccessfulBackupId(long buf, long lastSuccessfulBackupId) {
-        PageUtils.putLong(buf, LAST_SUCCESSFUL_BACKUP_ID_OFF, lastSuccessfulBackupId);
+    public void setLastSuccessfulBackupId(long pageAddr, long lastSuccessfulBackupId) {
+        PageUtils.putLong(pageAddr, LAST_SUCCESSFUL_BACKUP_ID_OFF, lastSuccessfulBackupId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public long getLastSuccessfulBackupId(long buf) {
-        return PageUtils.getLong(buf, LAST_SUCCESSFUL_BACKUP_ID_OFF);
+    public long getLastSuccessfulBackupId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, LAST_SUCCESSFUL_BACKUP_ID_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param lastSuccessfulFullBackupId Last successful full backup id.
      */
-    public void setLastSuccessfulFullBackupId(long buf, long lastSuccessfulFullBackupId) {
-        PageUtils.putLong(buf, LAST_SUCCESSFUL_FULL_BACKUP_ID_OFF, lastSuccessfulFullBackupId);
+    public void setLastSuccessfulFullBackupId(long pageAddr, long lastSuccessfulFullBackupId) {
+        PageUtils.putLong(pageAddr, LAST_SUCCESSFUL_FULL_BACKUP_ID_OFF, lastSuccessfulFullBackupId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public long getLastSuccessfulFullBackupId(long buf) {
-        return PageUtils.getLong(buf, LAST_SUCCESSFUL_FULL_BACKUP_ID_OFF);
+    public long getLastSuccessfulFullBackupId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, LAST_SUCCESSFUL_FULL_BACKUP_ID_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param nextBackupId Next backup id.
      */
-    public void setNextBackupId(long buf, long nextBackupId) {
-        PageUtils.putLong(buf, NEXT_BACKUP_ID_OFF, nextBackupId);
+    public void setNextBackupId(long pageAddr, long nextBackupId) {
+        PageUtils.putLong(pageAddr, NEXT_BACKUP_ID_OFF, nextBackupId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param lastAllocatedIdx Last allocated index.
      */
-    public void setLastAllocatedIndex(long buf, int lastAllocatedIdx) {
-        PageUtils.putInt(buf, LAST_ALLOCATED_INDEX_OFF, lastAllocatedIdx);
+    public void setLastAllocatedIndex(long pageAddr, int lastAllocatedIdx) {
+        PageUtils.putInt(pageAddr, LAST_ALLOCATED_INDEX_OFF, lastAllocatedIdx);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public int getLastAllocatedIndex(long buf) {
-        return PageUtils.getInt(buf, LAST_ALLOCATED_INDEX_OFF);
+    public int getLastAllocatedIndex(long pageAddr) {
+        return PageUtils.getInt(pageAddr, LAST_ALLOCATED_INDEX_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param previousAllocatedIdx Last allocated index.
      */
-    public void setCandidateAllocatedIndex(long buf, int previousAllocatedIdx) {
-        PageUtils.putInt(buf, CANDIDATE_ALLOCATED_INDEX_OFF, previousAllocatedIdx);
+    public void setCandidateAllocatedIndex(long pageAddr, int previousAllocatedIdx) {
+        PageUtils.putInt(pageAddr, CANDIDATE_ALLOCATED_INDEX_OFF, previousAllocatedIdx);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public int getCandidateAllocatedIndex(long buf) {
-        return PageUtils.getInt(buf, CANDIDATE_ALLOCATED_INDEX_OFF);
+    public int getCandidateAllocatedIndex(long pageAddr) {
+        return PageUtils.getInt(pageAddr, CANDIDATE_ALLOCATED_INDEX_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public long getNextBackupId(long buf) {
-        return PageUtils.getLong(buf, NEXT_BACKUP_ID_OFF);
+    public long getNextBackupId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, NEXT_BACKUP_ID_OFF);
     }
 }
