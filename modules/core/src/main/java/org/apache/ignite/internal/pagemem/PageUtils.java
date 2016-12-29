@@ -18,16 +18,12 @@
 package org.apache.ignite.internal.pagemem;
 
 import org.apache.ignite.internal.util.GridUnsafe;
-import sun.misc.Unsafe;
 
 /**
  *
  */
 @SuppressWarnings("deprecation")
 public class PageUtils {
-    /** */
-    private static final Unsafe unsafe = GridUnsafe.UNSAFE;
-
     /**
      * @param addr Start address. 
      * @param off Offset.
@@ -37,7 +33,7 @@ public class PageUtils {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getByte(addr + off);
+        return GridUnsafe.getByte(addr + off);
     }
 
     /**
@@ -53,11 +49,18 @@ public class PageUtils {
 
         byte[] bytes = new byte[len];
 
-        unsafe.copyMemory(null, addr + off, bytes, GridUnsafe.BYTE_ARR_OFF, len);
+        GridUnsafe.copyMemory(null, addr + off, bytes, GridUnsafe.BYTE_ARR_OFF, len);
 
         return bytes;
     }
 
+    /**
+     * @param srcAddr Source address.
+     * @param srcOff Source offset.
+     * @param dst Destination array.
+     * @param dstOff Destination offset.
+     * @param len Length.
+     */
     public static void getBytes(long srcAddr, int srcOff, byte[] dst, int dstOff, int len) {
         assert srcAddr > 0;
         assert srcOff > 0;
@@ -65,72 +68,118 @@ public class PageUtils {
         assert dstOff >= 0;
         assert len >= 0;
 
-        unsafe.copyMemory(null, srcAddr + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
+        GridUnsafe.copyMemory(null, srcAddr + srcOff, dst, GridUnsafe.BYTE_ARR_OFF + dstOff, len);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @return Value.
+     */
     public static short getShort(long addr, int off) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getShort(addr + off);
+        return GridUnsafe.getShort(addr + off);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @return Value.
+     */
     public static int getInt(long addr, int off) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getInt(addr + off);
+        return GridUnsafe.getInt(addr + off);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @return Value.
+     */
     public static long getLong(long addr, int off) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        return unsafe.getLong(addr + off);
+        return GridUnsafe.getLong(addr + off);
     }
 
+    /**
+     * @param addr Address/
+     * @param off Offset.
+     * @param bytes Bytes.
+     */
     public static void putBytes(long addr, int off, byte[] bytes) {
         assert addr > 0 : addr;
         assert off >= 0;
         assert bytes != null;
 
-        unsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF, null, addr + off, bytes.length);
+        GridUnsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF, null, addr + off, bytes.length);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @param bytes Bytes array.
+     * @param bytesOff Bytes array offset.
+     */
     public static void putBytes(long addr, int off, byte[] bytes, int bytesOff) {
         assert addr > 0 : addr;
         assert off >= 0;
         assert bytes != null;
         assert bytesOff >= 0 && bytesOff < bytes.length : bytesOff;
 
-        unsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF + bytesOff, null, addr + off, bytes.length - bytesOff);
+        GridUnsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF + bytesOff, null, addr + off, bytes.length - bytesOff);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @param v Value.
+     */
     public static void putByte(long addr, int off, byte v) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putByte(addr + off, v);
+        GridUnsafe.putByte(addr + off, v);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @param v Value.
+     */
     public static void putShort(long addr, int off, short v) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putShort(addr + off, v);
+        GridUnsafe.putShort(addr + off, v);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @param v Value.
+     */
     public static void putInt(long addr, int off, int v) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putInt(addr + off, v);
+        GridUnsafe.putInt(addr + off, v);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @param v Value.
+     */
     public static void putLong(long addr, int off, long v) {
         assert addr > 0 : addr;
         assert off >= 0;
 
-        unsafe.putLong(addr + off, v);
+        GridUnsafe.putLong(addr + off, v);
     }
 }

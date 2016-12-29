@@ -48,11 +48,11 @@ public class DataPageRemoveRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize)
+    @Override public void applyDelta(long pageAddr, int pageSize)
         throws IgniteCheckedException {
-        DataPageIO io = DataPageIO.VERSIONS.forPage(buf);
+        DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
 
-        io.removeRow(buf, itemId, pageSize);
+        io.removeRow(pageAddr, itemId, pageSize);
     }
 
     /** {@inheritDoc} */

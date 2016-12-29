@@ -79,7 +79,7 @@ public class SplitForwardPageRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long fwdBuf, int pageSize) throws IgniteCheckedException {
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
         throw new IgniteCheckedException("Split forward page record should not be logged.");
     }
 

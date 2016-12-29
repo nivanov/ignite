@@ -157,7 +157,7 @@ public class FreeListImpl extends PagesList implements FreeList, ReuseList {
                 // Read last link before the fragment write, because it will be updated there.
                 long lastLink = row.link();
 
-                int payloadSize = io.addRowFragment(buf, row, written, rowSize, pageSize());
+                int payloadSize = io.addRowFragment(pageMem, buf, row, written, rowSize, pageSize());
 
                 assert payloadSize > 0 : payloadSize;
 

@@ -70,8 +70,8 @@ public class TrackingPageDeltaRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        TrackingPageIO.VERSIONS.forPage(buf).markChanged(buf, pageIdToMark, nextBackupId, lastSuccessfulBackupId, pageSize);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        TrackingPageIO.VERSIONS.forPage(pageAddr).markChanged(pageAddr, pageIdToMark, nextBackupId, lastSuccessfulBackupId, pageSize);
     }
 
     /** {@inheritDoc} */

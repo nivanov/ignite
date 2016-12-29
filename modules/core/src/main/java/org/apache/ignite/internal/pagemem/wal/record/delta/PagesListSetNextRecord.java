@@ -46,10 +46,10 @@ public class PagesListSetNextRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        PagesListNodeIO io = PagesListNodeIO.VERSIONS.forPage(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        PagesListNodeIO io = PagesListNodeIO.VERSIONS.forPage(pageAddr);
 
-        io.setNextId(buf, nextPageId);
+        io.setNextId(pageAddr, nextPageId);
     }
 
     /** {@inheritDoc} */

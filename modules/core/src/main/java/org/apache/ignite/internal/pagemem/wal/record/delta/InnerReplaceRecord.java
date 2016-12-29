@@ -57,7 +57,7 @@ public class InnerReplaceRecord<L> extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long dstBuf, int pageSize) throws IgniteCheckedException {
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
         throw new IgniteCheckedException("Inner replace record should not be logged.");
     }
 

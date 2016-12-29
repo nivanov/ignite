@@ -30,8 +30,6 @@ import org.apache.ignite.internal.processors.cache.database.CacheDataRow;
 import org.apache.ignite.internal.processors.cache.database.tree.util.PageHandler;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
 import org.apache.ignite.internal.util.typedef.internal.SB;
-import sun.misc.JavaNioAccess;
-import sun.misc.SharedSecrets;
 
 /**
  * Data pages IO.
@@ -845,6 +843,7 @@ public class DataPageIO extends PageIO {
     /**
      * Adds maximum possible fragment of the given row to this data page and sets respective link to the row.
      *
+     * @param pageMem Page memory.
      * @param pageAddr Page address.
      * @param row Cache data row.
      * @param written Number of bytes of row size that was already written.
@@ -854,13 +853,14 @@ public class DataPageIO extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     public int addRowFragment(
+        PageMemory pageMem,
         long pageAddr,
         CacheDataRow row,
         int written,
         int rowSize,
         int pageSize
     ) throws IgniteCheckedException {
-        return addRowFragment(pageAddr, written, rowSize, row.link(), row, null, pageSize);
+        return addRowFragment(pageMem, pageAddr, written, rowSize, row.link(), row, null, pageSize);
     }
 
     /**
@@ -878,15 +878,13 @@ public class DataPageIO extends PageIO {
         long lastLink,
         int pageSize
     ) throws IgniteCheckedException {
-        addRowFragment(pageAddr, 0, 0, lastLink, null, payload, pageSize);
+        addRowFragment(null, pageAddr, 0, 0, lastLink, null, payload, pageSize);
     }
-
-    // TODO GG-11810.
-    private JavaNioAccess nioAccess = SharedSecrets.getJavaNioAccess();
 
     /**
      * Adds maximum possible fragment of the given row to this data page and sets respective link to the row.
      *
+     * @param pageMem Page memory.
      * @param pageAddr Page address.
      * @param written Number of bytes of row size that was already written.
      * @param rowSize Row size.
@@ -898,6 +896,7 @@ public class DataPageIO extends PageIO {
      * @throws IgniteCheckedException If failed.
      */
     private int addRowFragment(
+        PageMemory pageMem,
         long pageAddr,
         int written,
         int rowSize,
@@ -918,19 +917,18 @@ public class DataPageIO extends PageIO {
         int dataOff = getDataOffsetForWrite(pageAddr, fullEntrySize, directCnt, indirectCnt, pageSize);
 
         if (payload == null) {
-            ByteBuffer buf0 = nioAccess.newDirectByteBuffer(pageAddr, pageSize, null);
-            buf0.order(PageMemory.NATIVE_BYTE_ORDER);
+            ByteBuffer buf = pageMem.pageBuffer(pageAddr);
 
-            buf0.position(dataOff);
+            buf.position(dataOff);
 
             short p = (short)(payloadSize | FRAGMENTED_FLAG);
 
-            buf0.putShort(p);
-            buf0.putLong(lastLink);
+            buf.putShort(p);
+            buf.putLong(lastLink);
 
             int rowOff = rowSize - written - payloadSize;
 
-            writeFragmentData(row, buf0, rowOff, payloadSize);
+            writeFragmentData(row, buf, rowOff, payloadSize);
         }
         else {
             PageUtils.putShort(pageAddr, dataOff, (short)(payloadSize | FRAGMENTED_FLAG));

@@ -49,10 +49,10 @@ public class SplitExistingPageRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        BPlusIO<?> io = PageIO.getBPlusIO(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        BPlusIO<?> io = PageIO.getBPlusIO(pageAddr);
 
-        io.splitExistingPage(buf, mid, fwdId);
+        io.splitExistingPage(pageAddr, mid, fwdId);
     }
 
     /** {@inheritDoc} */

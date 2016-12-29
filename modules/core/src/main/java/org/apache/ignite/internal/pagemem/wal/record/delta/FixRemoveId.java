@@ -41,11 +41,11 @@ public class FixRemoveId extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize)
+    @Override public void applyDelta(long pageAddr, int pageSize)
         throws IgniteCheckedException {
-        BPlusIO<?> io = PageIO.getBPlusIO(buf);
+        BPlusIO<?> io = PageIO.getBPlusIO(pageAddr);
 
-        io.setRemoveId(buf, rmvId);
+        io.setRemoveId(pageAddr, rmvId);
     }
 
     /** {@inheritDoc} */

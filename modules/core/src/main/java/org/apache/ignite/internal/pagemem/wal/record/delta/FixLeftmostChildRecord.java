@@ -41,10 +41,10 @@ public class FixLeftmostChildRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        BPlusInnerIO<?> io = PageIO.getBPlusIO(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        BPlusInnerIO<?> io = PageIO.getBPlusIO(pageAddr);
 
-        io.setLeft(buf, 0, rightId);
+        io.setLeft(pageAddr, 0, rightId);
     }
 
     /** {@inheritDoc} */

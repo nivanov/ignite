@@ -37,10 +37,10 @@ public class MetaPageUpdateLastSuccessfulBackupId extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        PageMetaIO io = PageMetaIO.VERSIONS.forPage(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        PageMetaIO io = PageMetaIO.VERSIONS.forPage(pageAddr);
 
-        io.setLastSuccessfulBackupId(buf, lastSuccessfulBackupId);
+        io.setLastSuccessfulBackupId(pageAddr, lastSuccessfulBackupId);
     }
 
     /** {@inheritDoc} */

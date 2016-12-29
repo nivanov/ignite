@@ -78,12 +78,12 @@ public class MetaPageUpdatePartitionDataRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        PagePartitionMetaIO io = PagePartitionMetaIO.VERSIONS.forPage(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        PagePartitionMetaIO io = PagePartitionMetaIO.VERSIONS.forPage(pageAddr);
 
-        io.setUpdateCounter(buf, updateCntr);
-        io.setGlobalRemoveId(buf, globalRmvId);
-        io.setSize(buf, partSize);
+        io.setUpdateCounter(pageAddr, updateCntr);
+        io.setGlobalRemoveId(pageAddr, globalRmvId);
+        io.setSize(pageAddr, partSize);
     }
 
     /** {@inheritDoc} */

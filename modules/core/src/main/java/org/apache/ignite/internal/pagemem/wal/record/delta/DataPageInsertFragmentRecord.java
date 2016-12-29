@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.pagemem.wal.record.delta;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.processors.cache.database.tree.io.DataPageIO;
 
@@ -50,10 +49,10 @@ public class DataPageInsertFragmentRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        DataPageIO io = DataPageIO.VERSIONS.forPage(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
 
-        io.addRowFragment(buf, payload, lastLink, pageSize);
+        io.addRowFragment(pageAddr, payload, lastLink, pageSize);
     }
 
     /** {@inheritDoc} */

@@ -38,12 +38,12 @@ public class MetaPageUpdateCandidateAllocatedIndex extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        assert PageIO.getType(buf) == PageIO.T_META || PageIO.getType(buf) == PageIO.T_PART_META;
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        assert PageIO.getType(pageAddr) == PageIO.T_META || PageIO.getType(pageAddr) == PageIO.T_PART_META;
 
-        PageMetaIO io = PageMetaIO.VERSIONS.forVersion(PageIO.getVersion(buf));
+        PageMetaIO io = PageMetaIO.VERSIONS.forVersion(PageIO.getVersion(pageAddr));
 
-        io.setCandidateAllocatedIndex(buf, candidateAllocatedIdx);
+        io.setCandidateAllocatedIndex(pageAddr, candidateAllocatedIdx);
     }
 
     /** {@inheritDoc} */

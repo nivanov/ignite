@@ -72,14 +72,14 @@ public class PagesListInitNewPageRecord extends InitNewPageRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
         PagesListNodeIO io = PageIO.getPageIO(PageIO.T_PAGE_LIST_NODE, ioVer);
 
-        io.initNewPage(buf, pageId(), pageSize);
-        io.setPreviousId(buf, prevPageId);
+        io.initNewPage(pageAddr, pageId(), pageSize);
+        io.setPreviousId(pageAddr, prevPageId);
 
         if (addDataPageId != 0L) {
-            int cnt = io.addPage(buf, addDataPageId, pageSize);
+            int cnt = io.addPage(pageAddr, addDataPageId, pageSize);
 
             assert cnt == 0 : cnt;
         }

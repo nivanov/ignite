@@ -46,13 +46,13 @@ public class RemoveRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        BPlusIO<?> io = PageIO.getBPlusIO(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        BPlusIO<?> io = PageIO.getBPlusIO(pageAddr);
 
-        if (io.getCount(buf) != cnt)
-            throw new DeltaApplicationException("Count is wrong [expCnt=" + cnt + ", actual=" + io.getCount(buf) + ']');
+        if (io.getCount(pageAddr) != cnt)
+            throw new DeltaApplicationException("Count is wrong [expCnt=" + cnt + ", actual=" + io.getCount(pageAddr) + ']');
 
-        io.remove(buf, idx, cnt);
+        io.remove(pageAddr, idx, cnt);
     }
 
     /** {@inheritDoc} */

@@ -74,15 +74,15 @@ public class MetaPageInitRecord extends InitNewPageRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
         PageMetaIO io = ioType == PageIO.T_META ?
-            PageMetaIO.VERSIONS.forPage(buf) :
-            PagePartitionMetaIO.VERSIONS.forPage(buf);
+            PageMetaIO.VERSIONS.forPage(pageAddr) :
+            PagePartitionMetaIO.VERSIONS.forPage(pageAddr);
 
-        io.initNewPage(buf, newPageId, pageSize);
+        io.initNewPage(pageAddr, newPageId, pageSize);
 
-        io.setTreeRoot(buf, treeRoot);
-        io.setReuseListRoot(buf, reuseListRoot);
+        io.setTreeRoot(pageAddr, treeRoot);
+        io.setReuseListRoot(pageAddr, reuseListRoot);
     }
 
     /** {@inheritDoc} */

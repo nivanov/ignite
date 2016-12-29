@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
+import org.apache.ignite.internal.pagemem.PageMemory;
 import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
@@ -90,6 +91,8 @@ public class CacheDataRowAdapter implements CacheDataRow {
         boolean first = true;
 
         do {
+            PageMemory pageMem = cctx.shared().database().pageMemory();
+
             try (Page page = page(pageId(nextLink), cctx)) {
                 long pageAddr = page.getForReadPointer(); // Non-empty data page must not be recycled.
 
@@ -100,7 +103,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
 
                     DataPagePayload data = io.readPayload(pageAddr,
                         itemId(nextLink),
-                        cctx.shared().database().pageMemory().pageSize());
+                        pageMem.pageSize());
 
                     nextLink = data.nextLink();
 
@@ -115,12 +118,12 @@ public class CacheDataRowAdapter implements CacheDataRow {
                         first = false;
                     }
 
-                    ByteBuffer buf0 = page.pageBuffer();
+                    ByteBuffer buf = pageMem.pageBuffer(pageAddr);
 
-                    buf0.position(data.offset());
-                    buf0.limit(data.offset() + data.payloadSize());
+                    buf.position(data.offset());
+                    buf.limit(data.offset() + data.payloadSize());
 
-                    incomplete = readFragment(coctx, buf0, keyOnly, incomplete);
+                    incomplete = readFragment(coctx, buf, keyOnly, incomplete);
 
                     if (keyOnly && key != null)
                         return;
@@ -293,6 +296,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
      * @param buf Buffer.
      * @param incomplete Incomplete object.
      * @return Incomplete object.
+     * @throws IgniteCheckedException If failed.
      */
     private IncompleteObject<?> readIncompleteExpireTime(
         ByteBuffer buf,
@@ -336,6 +340,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
      * @param buf Buffer.
      * @param incomplete Incomplete object.
      * @return Incomplete object.
+     * @throws IgniteCheckedException If failed.
      */
     private IncompleteObject<?> readIncompleteVersion(
         ByteBuffer buf,

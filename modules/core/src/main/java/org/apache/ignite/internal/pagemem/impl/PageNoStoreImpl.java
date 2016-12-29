@@ -66,11 +66,9 @@ public class PageNoStoreImpl implements Page {
         this.noTagCheck = noTagCheck;
     }
 
-    /** {@inheritDoc} */
-    @Override public ByteBuffer pageBuffer() {
-        return pageMem.wrapPointer(absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD, pageMem.pageSize());
-    }
-
+    /**
+     * @return Data pointer.
+     */
     private long pointer() {
         return absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD;
     }

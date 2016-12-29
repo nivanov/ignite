@@ -50,10 +50,10 @@ public class PagesListRemovePageRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        PagesListNodeIO io = PagesListNodeIO.VERSIONS.forPage(buf);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        PagesListNodeIO io = PagesListNodeIO.VERSIONS.forPage(pageAddr);
 
-        boolean rmvd = io.removePage(buf, rmvdPageId);
+        boolean rmvd = io.removePage(pageAddr, rmvdPageId);
 
         assert rmvd;
     }

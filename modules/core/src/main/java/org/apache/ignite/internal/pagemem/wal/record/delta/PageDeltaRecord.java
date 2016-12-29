@@ -62,10 +62,11 @@ public abstract class PageDeltaRecord extends WALRecord {
      * Apply changes from this delta to the given page.
      * It is assumed that the given buffer represents page state right before this update.
      *
-     * @param buf Page buffer.
+     * @param pageAddr Page address.
+     * @param pageSize Page size.
      * @throws IgniteCheckedException If failed.
      */
-    public abstract void applyDelta(long buf, int pageSize) throws IgniteCheckedException;
+    public abstract void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException;
 
     /** {@inheritDoc} */
     @Override public String toString() {

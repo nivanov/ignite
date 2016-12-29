@@ -39,8 +39,8 @@ public class RecycleRecord extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        PageIO.setPageId(buf, newPageId);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        PageIO.setPageId(pageAddr, newPageId);
     }
 
     /** {@inheritDoc} */

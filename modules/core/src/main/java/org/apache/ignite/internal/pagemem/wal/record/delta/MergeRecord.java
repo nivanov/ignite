@@ -63,7 +63,7 @@ public class MergeRecord<L> extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long leftBuf, int pageSize) throws IgniteCheckedException {
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
         throw new IgniteCheckedException("Merge record should not be logged.");
     }
 

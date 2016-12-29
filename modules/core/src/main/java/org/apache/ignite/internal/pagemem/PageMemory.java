@@ -17,6 +17,7 @@
 
 package org.apache.ignite.internal.pagemem;
 
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.lifecycle.LifecycleAware;
@@ -62,4 +63,10 @@ public interface PageMemory extends LifecycleAware, PageIdAllocator {
      * @return Page size with system overhead, in bytes.
      */
     public int systemPageSize();
+
+    /**
+     * @param pageAddr Page address.
+     * @return Page byte buffer.
+     */
+    public ByteBuffer pageBuffer(long pageAddr);
 }

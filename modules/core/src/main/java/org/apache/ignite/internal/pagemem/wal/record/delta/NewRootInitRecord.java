@@ -73,8 +73,8 @@ public class NewRootInitRecord<L> extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        io.initNewRoot(buf, newRootId, leftChildId, row, rowBytes, rightChildId, pageSize);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        io.initNewRoot(pageAddr, newRootId, leftChildId, row, rowBytes, rightChildId, pageSize);
     }
 
     /** {@inheritDoc} */

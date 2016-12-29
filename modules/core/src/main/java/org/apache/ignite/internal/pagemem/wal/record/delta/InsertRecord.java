@@ -72,8 +72,8 @@ public class InsertRecord<L> extends PageDeltaRecord {
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long buf, int pageSize) throws IgniteCheckedException {
-        io.insert(buf, idx, row, rowBytes, rightId);
+    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+        io.insert(pageAddr, idx, row, rowBytes, rightId);
     }
 
     /** {@inheritDoc} */
