@@ -90,25 +90,25 @@ public class BPlusMetaIO extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param lvl Level.
      * @return First page ID at that level.
      */
-    public long getFirstPageId(long buf, int lvl) {
-        return PageUtils.getLong(buf, offset(lvl));
+    public long getFirstPageId(long pageAddr, int lvl) {
+        return PageUtils.getLong(pageAddr, offset(lvl));
     }
 
     /**
-     * @param buf    Buffer.
+     * @param pageAddr Page address.
      * @param lvl    Level.
      * @param pageId Page ID.
      */
-    private void setFirstPageId(long buf, int lvl, long pageId) {
-        assert lvl >= 0 && lvl < getLevelsCount(buf);
+    private void setFirstPageId(long pageAddr, int lvl, long pageId) {
+        assert lvl >= 0 && lvl < getLevelsCount(pageAddr);
 
-        PageUtils.putLong(buf, offset(lvl), pageId);
+        PageUtils.putLong(pageAddr, offset(lvl), pageId);
 
-        assert getFirstPageId(buf, lvl) == pageId;
+        assert getFirstPageId(pageAddr, lvl) == pageId;
     }
 
     /**
@@ -124,24 +124,24 @@ public class BPlusMetaIO extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param rootPageId New root page ID.
      * @param pageSize Page size.
      */
-    public void addRoot(long buf, long rootPageId, int pageSize) {
-        int lvl = getLevelsCount(buf);
+    public void addRoot(long pageAddr, long rootPageId, int pageSize) {
+        int lvl = getLevelsCount(pageAddr);
 
-        setLevelsCount(buf, lvl + 1, pageSize);
-        setFirstPageId(buf, lvl, rootPageId);
+        setLevelsCount(pageAddr, lvl + 1, pageSize);
+        setFirstPageId(pageAddr, lvl, rootPageId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param pageSize Page size.
      */
-    public void cutRoot(long buf, int pageSize) {
-        int lvl = getRootLevel(buf);
+    public void cutRoot(long pageAddr, int pageSize) {
+        int lvl = getRootLevel(pageAddr);
 
-        setLevelsCount(buf, lvl, pageSize); // Decrease tree height.
+        setLevelsCount(pageAddr, lvl, pageSize); // Decrease tree height.
     }
 }

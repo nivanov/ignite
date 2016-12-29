@@ -80,7 +80,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
      * @return compare result.
      * @throws IgniteCheckedException if fails.
      */
-    public int compareKey(GridCacheContext cctx, long link) throws IgniteCheckedException {
+    public int compareKey(GridCacheContext cctx, final long link) throws IgniteCheckedException {
         byte[] bytes = key().valueBytes(cctx.cacheObjectContext());
 
         PageMemory pageMem = cctx.shared().database().pageMemory();
@@ -97,9 +97,7 @@ public class CacheDataRowAdapter implements CacheDataRow {
                     itemId(link),
                     pageMem.pageSize());
 
-                link = data.nextLink();
-
-                if (link == 0) {
+                if (data.nextLink() == 0) {
                     long addr = pageAddr + data.offset();
 
                     int len = PageUtils.getInt(addr, 0);
