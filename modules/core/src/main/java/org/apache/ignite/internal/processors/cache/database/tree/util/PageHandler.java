@@ -289,6 +289,11 @@ public abstract class PageHandler<X, R> {
         GridUnsafe.copyMemory(null, srcAddr + srcOff, null, dstAddr + dstOff, cnt);
     }
 
+    /**
+     * @param addr Address.
+     * @param off Offset.
+     * @param len Length.
+     */
     public static void zeroMemory(long addr, int off, int len) {
         GridUnsafe.setMemory(addr + off, len, (byte)0);
     }
