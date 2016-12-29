@@ -46,6 +46,9 @@ public class BPlusTreeReuseSelfTest extends BPlusTreeSelfTest {
         assertTrue(TestReuseList.checkNoLocks());
     }
 
+    /**
+     *
+     */
     private static class TestReuseList extends ReuseListImpl {
         /** */
         private static ThreadLocal<Set<Long>> readLocks = new ThreadLocal<Set<Long>>() {

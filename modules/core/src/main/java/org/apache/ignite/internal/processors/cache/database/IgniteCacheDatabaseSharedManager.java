@@ -216,7 +216,7 @@ public class IgniteCacheDatabaseSharedManager extends GridCacheSharedManagerAdap
                 true,
                 sizes);
 
-        return new PageMemoryNoStoreImpl(log, memProvider, cctx, dbCfg.getPageSize());
+        return new PageMemoryNoStoreImpl(log, memProvider, cctx, dbCfg.getPageSize(), false);
     }
 
     /**

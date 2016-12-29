@@ -83,7 +83,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
     protected final ConcurrentMap<Integer, CacheDataStore> partDataStores = new ConcurrentHashMap<>();
 
     /** */
-    protected final CacheDataStore removedStore = new CacheDataStoreImpl(-1, null, null, null);
+    protected final CacheDataStore rmvStore = new CacheDataStoreImpl(-1, null, null, null);
 
     /** */
     protected PendingEntriesTree pendingEntries;
@@ -1095,9 +1095,9 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
             if (cmp != 0)
                 return cmp;
 
-            KeySearchRow row0 = io.getLookupRow(this, buf, idx);
+            long link = ((RowLinkIO)io).getLink(buf, idx);
 
-            return compareKeys(row0.key(), row.key());
+            return row.compareKey(cctx, link);
         }
 
         /** {@inheritDoc} */
@@ -1107,29 +1107,6 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
             long link = ((RowLinkIO)io).getLink(buf, idx);
 
             return rowStore.dataRow(hash, link);
-        }
-
-        /**
-         * @param key1 First key.
-         * @param key2 Second key.
-         * @return Compare result.
-         * @throws IgniteCheckedException If failed.
-         */
-        private int compareKeys(CacheObject key1, CacheObject key2) throws IgniteCheckedException {
-            byte[] bytes1 = key1.valueBytes(cctx.cacheObjectContext());
-            byte[] bytes2 = key2.valueBytes(cctx.cacheObjectContext());
-
-            int len = Math.min(bytes1.length, bytes2.length);
-
-            for (int i = 0; i < len; i++) {
-                byte b1 = bytes1[i];
-                byte b2 = bytes2[i];
-
-                if (b1 != b2)
-                    return b1 > b2 ? 1 : -1;
-            }
-
-            return Integer.compare(bytes1.length, bytes2.length);
         }
     }
 

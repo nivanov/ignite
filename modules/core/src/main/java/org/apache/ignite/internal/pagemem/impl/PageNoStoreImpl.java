@@ -33,9 +33,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public class PageNoStoreImpl implements Page {
     /** */
-    private int segIdx;
-
-    /** */
     private long absPtr;
 
     /** */
@@ -47,23 +44,17 @@ public class PageNoStoreImpl implements Page {
     /** */
     private PageMemoryNoStoreImpl pageMem;
 
-    /** Page for memory restore */
-    private final boolean noTagCheck;
-
     /**
-     * @param segIdx Segment index.
      * @param absPtr Absolute pointer.
      */
-    public PageNoStoreImpl(
-        PageMemoryNoStoreImpl pageMem, int segIdx, long absPtr, int cacheId, long pageId, boolean noTagCheck
+    PageNoStoreImpl(
+        PageMemoryNoStoreImpl pageMem, long absPtr, int cacheId, long pageId
     ) {
         this.pageMem = pageMem;
-        this.segIdx = segIdx;
         this.absPtr = absPtr;
 
         this.cacheId = cacheId;
         this.pageId = pageId;
-        this.noTagCheck = noTagCheck;
     }
 
     /**
@@ -103,20 +94,18 @@ public class PageNoStoreImpl implements Page {
 
     /** {@inheritDoc} */
     @Override public long getForWritePointer() {
-        int tag = noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS : PageIdUtils.tag(pageId);
+        int tag = PageIdUtils.tag(pageId);
         boolean locked = pageMem.writeLockPage(absPtr, tag);
 
-        if (!locked && !noTagCheck)
+        if (!locked)
             return 0L;
-
-        assert locked;
 
         return pointer();
     }
 
     /** {@inheritDoc} */
     @Override public long tryGetForWritePointer() {
-        int tag = noTagCheck ? OffheapReadWriteLock.TAG_LOCK_ALWAYS :  PageIdUtils.tag(pageId);
+        int tag = PageIdUtils.tag(pageId);
 
         if (pageMem.tryWriteLockPage(absPtr, tag))
             return pointer();
@@ -151,38 +140,11 @@ public class PageNoStoreImpl implements Page {
         pageMem.releasePage(this);
     }
 
-    /**
-     * @return Segment index.
-     */
-    int segmentIndex() {
-        return segIdx;
-    }
-
-    /**
-     * @return Absolute pointer to the system page start.
-     */
-    long absolutePointer() {
-        return absPtr;
-    }
-
-    /**
-     * @param buf Byte buffer.
-     * @return The given buffer back.
-     */
-    private ByteBuffer reset(ByteBuffer buf) {
-        buf.order(PageMemory.NATIVE_BYTE_ORDER);
-
-        buf.rewind();
-
-        return buf;
-    }
-
     /** {@inheritDoc} */
     @Override public String toString() {
         SB sb = new SB("PageNoStoreImpl [absPtr=0x");
 
         sb.appendHex(absPtr);
-        sb.a(", segIdx=").a(segIdx);
         sb.a(", cacheId=").a(cacheId);
         sb.a(", pageId=0x").appendHex(pageId);
         sb.a("]");

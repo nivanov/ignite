@@ -73,6 +73,78 @@ public class CacheDataRowAdapter implements CacheDataRow {
     }
 
     /**
+     * Compare key with key of record, given by link.
+     *
+     * @param cctx Context.
+     * @param link Link to second record.
+     * @return compare result.
+     * @throws IgniteCheckedException if fails.
+     */
+    public int compareKey(GridCacheContext cctx, long link) throws IgniteCheckedException {
+        byte[] bytes = key().valueBytes(cctx.cacheObjectContext());
+
+        PageMemory pageMem = cctx.shared().database().pageMemory();
+
+        try (Page page = page(pageId(link), cctx)) {
+            long pageAddr = page.getForReadPointer(); // Non-empty data page must not be recycled.
+
+            assert pageAddr != 0L : link;
+
+            try {
+                DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
+
+                DataPagePayload data = io.readPayload(pageAddr,
+                    itemId(link),
+                    pageMem.pageSize());
+
+                link = data.nextLink();
+
+                if (link == 0) {
+                    long addr = pageAddr + data.offset();
+
+                    int len = PageUtils.getInt(addr, 0);
+
+                    int size = Math.min(bytes.length, len);
+
+                    addr += 5; // Skip length and type byte.
+
+                    for (int i = 0; i < size; i++) {
+                        byte b1 = PageUtils.getByte(addr, i);
+                        byte b2 = bytes[i];
+
+                        if (b1 != b2)
+                            return b1 > b2 ? 1 : -1;
+                    }
+
+                    return Integer.compare(len, bytes.length);
+                }
+            }
+            finally {
+                page.releaseRead();
+            }
+        }
+
+        // TODO GG-11768.
+        CacheDataRowAdapter other = new CacheDataRowAdapter(link);
+        other.initFromLink(cctx, true);
+
+        byte[] bytes1 = other.key().valueBytes(cctx.cacheObjectContext());
+        byte[] bytes2 = key.valueBytes(cctx.cacheObjectContext());
+
+        int len = Math.min(bytes1.length, bytes2.length);
+
+        for (int i = 0; i < len; i++) {
+            byte b1 = bytes1[i];
+            byte b2 = bytes2[i];
+
+            if (b1 != b2)
+                return b1 > b2 ? 1 : -1;
+        }
+
+        return Integer.compare(bytes1.length, bytes2.length);
+    }
+
+    /**
      * Read row from data pages.
      *
      * @param cctx Cache context.
