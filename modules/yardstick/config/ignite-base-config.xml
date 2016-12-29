@@ -125,19 +125,6 @@
                     <property name="cacheMode" value="PARTITIONED"/>
 
                     <property name="atomicityMode" value="ATOMIC"/>
-
-                    <property name="typeMetadata">
-                        <list>
-                            <value>java.lang.Integer</value>
-                            <value>org.apache.ignite.yardstick.cache.model.Person1</value>
-
-                            <value>java.lang.Integer</value>
-                            <value>org.apache.ignite.yardstick.cache.model.Person2</value>
-
-                            <value>java.lang.Integer</value>
-                            <value>org.apache.ignite.yardstick.cache.model.Person8</value>
-                        </list>
-                    </property>
                 </bean>
 
                 <bean class="org.apache.ignite.configuration.CacheConfiguration">
