@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.pagemem.wal.record.delta;
 
-import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
 import org.apache.ignite.internal.util.tostring.GridToStringExclude;
@@ -25,7 +24,7 @@ import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
 
 /**
- * Initializes new page by calling {@link PageIO#initNewPage(ByteBuffer, long)}.
+ * Initializes new page by calling {@link PageIO#initNewPage(long, long, int)}.
  */
 public class InitNewPageRecord extends PageDeltaRecord {
     /** */

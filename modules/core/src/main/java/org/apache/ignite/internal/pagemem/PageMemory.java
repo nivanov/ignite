@@ -26,7 +26,7 @@ import org.apache.ignite.lifecycle.LifecycleAware;
  */
 public interface PageMemory extends LifecycleAware, PageIdAllocator {
     /** */
-    public ByteOrder NATIVE_BYTE_ORDER = ByteOrder.nativeOrder();
+    public static final ByteOrder NATIVE_BYTE_ORDER = ByteOrder.nativeOrder();
 
     /**
      * Gets the page associated with the given page ID. Each page obtained with this method must be released by

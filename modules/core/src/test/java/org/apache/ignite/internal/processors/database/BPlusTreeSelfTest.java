@@ -1132,10 +1132,10 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
 
     /**
      * @param page Page.
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public static void checkPageId(Page page, long buf) {
-        long pageId = PageIO.getPageId(buf);
+    public static void checkPageId(Page page, long pageAddr) {
+        long pageId = PageIO.getPageId(pageAddr);
 
         // Page ID must be 0L for newly allocated page, for reused page effective ID must remain the same.
         if (pageId != 0L && page.id() != pageId)
@@ -1199,18 +1199,18 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override protected int compare(BPlusIO<Long> io, long buf, int idx, Long n2)
+        @Override protected int compare(BPlusIO<Long> io, long pageAddr, int idx, Long n2)
             throws IgniteCheckedException {
-            Long n1 = io.getLookupRow(this, buf, idx);
+            Long n1 = io.getLookupRow(this, pageAddr, idx);
 
             return Long.compare(n1, n2);
         }
 
         /** {@inheritDoc} */
-        @Override protected Long getRow(BPlusIO<Long> io, long buf, int idx) throws IgniteCheckedException {
+        @Override protected Long getRow(BPlusIO<Long> io, long pageAddr, int idx) throws IgniteCheckedException {
             assert io.canGetRow() : io;
 
-            return io.getLookupRow(this, buf, idx);
+            return io.getLookupRow(this, pageAddr, idx);
         }
 
         /**
@@ -1247,11 +1247,11 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onReadLock(Page page, long buf) {
-            if (buf != 0L) {
-                long pageId = PageIO.getPageId(buf);
+        @Override public void onReadLock(Page page, long pageAddr) {
+            if (pageAddr != 0L) {
+                long pageId = PageIO.getPageId(pageAddr);
 
-                checkPageId(page, buf);
+                checkPageId(page, pageAddr);
 
                 assertNull(locks(true).put(page.id(), pageId));
             }
@@ -1260,10 +1260,10 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onReadUnlock(Page page, long buf) {
-            checkPageId(page, buf);
+        @Override public void onReadUnlock(Page page, long pageAddr) {
+            checkPageId(page, pageAddr);
 
-            long pageId = PageIO.getPageId(buf);
+            long pageId = PageIO.getPageId(pageAddr);
 
             assertEquals(Long.valueOf(pageId), locks(true).remove(page.id()));
         }
@@ -1274,11 +1274,11 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onWriteLock(Page page, long buf) {
-            if (buf != 0L) {
-                checkPageId(page, buf);
+        @Override public void onWriteLock(Page page, long pageAddr) {
+            if (pageAddr != 0L) {
+                checkPageId(page, pageAddr);
 
-                long pageId = PageIO.getPageId(buf);
+                long pageId = PageIO.getPageId(pageAddr);
 
                 if (pageId == 0L)
                     pageId = page.id(); // It is a newly allocated page.
@@ -1290,8 +1290,8 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onWriteUnlock(Page page, long buf) {
-            assertEquals(effectivePageId(page.id()), effectivePageId(PageIO.getPageId(buf)));
+        @Override public void onWriteUnlock(Page page, long pageAddr) {
+            assertEquals(effectivePageId(page.id()), effectivePageId(PageIO.getPageId(pageAddr)));
 
             assertEquals(Long.valueOf(page.id()), locks(false).remove(page.id()));
         }
@@ -1382,16 +1382,16 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, Long row) {
+        @Override public void storeByOffset(long pageAddr, int off, Long row) {
             checkNotRemoved(row);
 
-            PageUtils.putLong(buf, off, row);
+            PageUtils.putLong(pageAddr, off, row);
         }
 
         /** {@inheritDoc} */
-        @Override public Long getLookupRow(BPlusTree<Long,?> tree, long buf, int idx)
+        @Override public Long getLookupRow(BPlusTree<Long,?> tree, long pageAddr, int idx)
             throws IgniteCheckedException {
-            Long row = PageUtils.getLong(buf, offset(idx));
+            Long row = PageUtils.getLong(pageAddr, offset(idx));
 
             checkNotRemoved(row);
 
@@ -1428,21 +1428,21 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
     private static final class LongLeafIO extends BPlusLeafIO<Long> {
         /**
          */
-        protected LongLeafIO() {
+        LongLeafIO() {
             super(LONG_LEAF_IO, 1, 8);
         }
 
         /** {@inheritDoc} */
-        @Override public int getMaxCount(long buf, int pageSize) {
+        @Override public int getMaxCount(long pageAddr, int pageSize) {
             if (MAX_PER_PAGE != 0)
                 return MAX_PER_PAGE;
 
-            return super.getMaxCount(buf, pageSize);
+            return super.getMaxCount(pageAddr, pageSize);
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, Long row) {
-            PageUtils.putLong(buf, off, row);
+        @Override public void storeByOffset(long pageAddr, int off, Long row) {
+            PageUtils.putLong(pageAddr, off, row);
         }
 
         /** {@inheritDoc} */
@@ -1453,9 +1453,9 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
-        @Override public Long getLookupRow(BPlusTree<Long,?> tree, long buf, int idx)
+        @Override public Long getLookupRow(BPlusTree<Long,?> tree, long pageAddr, int idx)
             throws IgniteCheckedException {
-            return PageUtils.getLong(buf, offset(idx));
+            return PageUtils.getLong(pageAddr, offset(idx));
         }
     }
 }

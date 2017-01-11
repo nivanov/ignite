@@ -1168,25 +1168,25 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override protected int compare(BPlusIO<KeySearchRow> io, long buf, int idx, KeySearchRow row)
+        @Override protected int compare(BPlusIO<KeySearchRow> io, long pageAddr, int idx, KeySearchRow row)
             throws IgniteCheckedException {
-            int hash = ((RowLinkIO)io).getHash(buf, idx);
+            int hash = ((RowLinkIO)io).getHash(pageAddr, idx);
 
             int cmp = Integer.compare(hash, row.hash);
 
             if (cmp != 0)
                 return cmp;
 
-            long link = ((RowLinkIO)io).getLink(buf, idx);
+            long link = ((RowLinkIO)io).getLink(pageAddr, idx);
 
             return row.compareKey(cctx, link);
         }
 
         /** {@inheritDoc} */
-        @Override protected DataRow getRow(BPlusIO<KeySearchRow> io, long buf, int idx)
+        @Override protected DataRow getRow(BPlusIO<KeySearchRow> io, long pageAddr, int idx)
             throws IgniteCheckedException {
-            int hash = ((RowLinkIO)io).getHash(buf, idx);
-            long link = ((RowLinkIO)io).getLink(buf, idx);
+            int hash = ((RowLinkIO)io).getHash(pageAddr, idx);
+            long link = ((RowLinkIO)io).getLink(pageAddr, idx);
 
             return rowStore.dataRow(hash, link);
         }
@@ -1224,14 +1224,14 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param off Offset.
      * @param link Link.
      * @param hash Hash.
      */
-    private static void store0(long buf, int off, long link, int hash) {
-        PageUtils.putLong(buf, off, link);
-        PageUtils.putInt(buf, off + 8, hash);
+    private static void store0(long pageAddr, int off, long link, int hash) {
+        PageUtils.putLong(pageAddr, off, link);
+        PageUtils.putInt(pageAddr, off + 8, hash);
     }
 
     /**
@@ -1239,18 +1239,18 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
      */
     private interface RowLinkIO {
         /**
-         * @param buf Buffer.
+         * @param pageAddr Page address.
          * @param idx Index.
          * @return Row link.
          */
-        public long getLink(long buf, int idx);
+        public long getLink(long pageAddr, int idx);
 
         /**
-         * @param buf Buffer.
+         * @param pageAddr Page address.
          * @param idx Index.
          * @return Key hash code.
          */
-        public int getHash(long buf, int idx);
+        public int getHash(long pageAddr, int idx);
     }
 
     /**
@@ -1270,39 +1270,39 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, KeySearchRow row) {
+        @Override public void storeByOffset(long pageAddr, int off, KeySearchRow row) {
             assert row.link() != 0;
 
-            store0(buf, off, row.link(), row.hash);
+            store0(pageAddr, off, row.link(), row.hash);
         }
 
         /** {@inheritDoc} */
-        @Override public KeySearchRow getLookupRow(BPlusTree<KeySearchRow, ?> tree, long buf, int idx) {
-            int hash = getHash(buf, idx);
-            long link = getLink(buf, idx);
+        @Override public KeySearchRow getLookupRow(BPlusTree<KeySearchRow, ?> tree, long pageAddr, int idx) {
+            int hash = getHash(pageAddr, idx);
+            long link = getLink(pageAddr, idx);
 
             return ((CacheDataTree)tree).rowStore.keySearchRow(hash, link);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(long dst, int dstIdx, BPlusIO<KeySearchRow> srcIo, long src,
+        @Override public void store(long dstPageAddr, int dstIdx, BPlusIO<KeySearchRow> srcIo, long srcPageAddr,
             int srcIdx) {
-            int hash = ((RowLinkIO)srcIo).getHash(src, srcIdx);
-            long link = ((RowLinkIO)srcIo).getLink(src, srcIdx);
+            int hash = ((RowLinkIO)srcIo).getHash(srcPageAddr, srcIdx);
+            long link = ((RowLinkIO)srcIo).getLink(srcPageAddr, srcIdx);
 
-            store0(dst, offset(dstIdx), link, hash);
+            store0(dstPageAddr, offset(dstIdx), link, hash);
         }
 
         /** {@inheritDoc} */
-        @Override public long getLink(long buf, int idx) {
-            assert idx < getCount(buf) : idx;
+        @Override public long getLink(long pageAddr, int idx) {
+            assert idx < getCount(pageAddr) : idx;
 
-            return PageUtils.getLong(buf, offset(idx));
+            return PageUtils.getLong(pageAddr, offset(idx));
         }
 
         /** {@inheritDoc} */
-        @Override public int getHash(long buf, int idx) {
-            return PageUtils.getInt(buf, offset(idx) + 8);
+        @Override public int getHash(long pageAddr, int idx) {
+            return PageUtils.getInt(pageAddr, offset(idx) + 8);
         }
     }
 
@@ -1323,16 +1323,16 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, KeySearchRow row) {
+        @Override public void storeByOffset(long pageAddr, int off, KeySearchRow row) {
             assert row.link() != 0;
 
-            store0(buf, off, row.link(), row.hash);
+            store0(pageAddr, off, row.link(), row.hash);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(long dst, int dstIdx, BPlusIO<KeySearchRow> srcIo, long src,
+        @Override public void store(long dstPageAddr, int dstIdx, BPlusIO<KeySearchRow> srcIo, long srcPageAddr,
             int srcIdx) {
-            store0(dst, offset(dstIdx), getLink(src, srcIdx), getHash(src, srcIdx));
+            store0(dstPageAddr, offset(dstIdx), getLink(srcPageAddr, srcIdx), getHash(srcPageAddr, srcIdx));
         }
 
         /** {@inheritDoc} */
@@ -1344,15 +1344,15 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override public long getLink(long buf, int idx) {
-            assert idx < getCount(buf) : idx;
+        @Override public long getLink(long pageAddr, int idx) {
+            assert idx < getCount(pageAddr) : idx;
 
-            return PageUtils.getLong(buf, offset(idx));
+            return PageUtils.getLong(pageAddr, offset(idx));
         }
 
         /** {@inheritDoc} */
-        @Override public int getHash(long buf, int idx) {
-            return PageUtils.getInt(buf, offset(idx) + 8);
+        @Override public int getHash(long pageAddr, int idx) {
+            return PageUtils.getInt(pageAddr, offset(idx) + 8);
         }
     }
 
@@ -1447,9 +1447,9 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override protected int compare(BPlusIO<PendingRow> io, long buf, int idx, PendingRow row)
+        @Override protected int compare(BPlusIO<PendingRow> io, long pageAddr, int idx, PendingRow row)
             throws IgniteCheckedException {
-            long expireTime = ((PendingRowIO)io).getExpireTime(buf, idx);
+            long expireTime = ((PendingRowIO)io).getExpireTime(pageAddr, idx);
 
             int cmp = Long.compare(expireTime, row.expireTime);
 
@@ -1459,15 +1459,15 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
             if (row.link == 0L)
                 return 0;
 
-            long link = ((PendingRowIO)io).getLink(buf, idx);
+            long link = ((PendingRowIO)io).getLink(pageAddr, idx);
 
             return Long.compare(link, row.link);
         }
 
         /** {@inheritDoc} */
-        @Override protected PendingRow getRow(BPlusIO<PendingRow> io, long buf, int idx)
+        @Override protected PendingRow getRow(BPlusIO<PendingRow> io, long pageAddr, int idx)
             throws IgniteCheckedException {
-            return io.getLookupRow(this, buf, idx);
+            return io.getLookupRow(this, pageAddr, idx);
         }
     }
 
@@ -1476,18 +1476,18 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
      */
     private interface PendingRowIO {
         /**
-         * @param buf Buffer.
+         * @param pageAddr Page address.
          * @param idx Index.
          * @return Expire time.
          */
-        long getExpireTime(long buf, int idx);
+        long getExpireTime(long pageAddr, int idx);
 
         /**
-         * @param buf Buffer.
+         * @param pageAddr Page address.
          * @param idx Index.
          * @return Link.
          */
-        long getLink(long buf, int idx);
+        long getLink(long pageAddr, int idx);
     }
 
     /**
@@ -1507,43 +1507,45 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, PendingRow row) throws IgniteCheckedException {
+        @Override public void storeByOffset(long pageAddr, int off, PendingRow row) throws IgniteCheckedException {
             assert row.link != 0;
             assert row.expireTime != 0;
 
-            PageUtils.putLong(buf, off, row.expireTime);
-            PageUtils.putLong(buf, off + 8, row.link);
+            PageUtils.putLong(pageAddr, off, row.expireTime);
+            PageUtils.putLong(pageAddr, off + 8, row.link);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(long dst,
+        @Override public void store(long dstPageAddr,
             int dstIdx,
             BPlusIO<PendingRow> srcIo,
-            long src,
+            long srcPageAddr,
             int srcIdx) throws IgniteCheckedException {
             int dstOff = offset(dstIdx);
 
-            long link = ((PendingRowIO)srcIo).getLink(src, srcIdx);
-            long expireTime = ((PendingRowIO)srcIo).getExpireTime(src, srcIdx);
+            long link = ((PendingRowIO)srcIo).getLink(srcPageAddr, srcIdx);
+            long expireTime = ((PendingRowIO)srcIo).getExpireTime(srcPageAddr, srcIdx);
 
-            PageUtils.putLong(dst, dstOff, expireTime);
-            PageUtils.putLong(dst, dstOff + 8, link);
+            PageUtils.putLong(dstPageAddr, dstOff, expireTime);
+            PageUtils.putLong(dstPageAddr, dstOff + 8, link);
         }
 
         /** {@inheritDoc} */
-        @Override public PendingRow getLookupRow(BPlusTree<PendingRow, ?> tree, long buf, int idx)
+        @Override public PendingRow getLookupRow(BPlusTree<PendingRow, ?> tree, long pageAddr, int idx)
             throws IgniteCheckedException {
-            return PendingRow.createRowWithKey(((PendingEntriesTree)tree).cctx, getExpireTime(buf, idx), getLink(buf, idx));
+            return PendingRow.createRowWithKey(((PendingEntriesTree)tree).cctx,
+                getExpireTime(pageAddr, idx),
+                getLink(pageAddr, idx));
         }
 
         /** {@inheritDoc} */
-        @Override public long getExpireTime(long buf, int idx) {
-            return PageUtils.getLong(buf, offset(idx));
+        @Override public long getExpireTime(long pageAddr, int idx) {
+            return PageUtils.getLong(pageAddr, offset(idx));
         }
 
         /** {@inheritDoc} */
-        @Override public long getLink(long buf, int idx) {
-            return PageUtils.getLong(buf, offset(idx) + 8);
+        @Override public long getLink(long pageAddr, int idx) {
+            return PageUtils.getLong(pageAddr, offset(idx) + 8);
         }
     }
 
@@ -1564,43 +1566,45 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, PendingRow row) throws IgniteCheckedException {
+        @Override public void storeByOffset(long pageAddr, int off, PendingRow row) throws IgniteCheckedException {
             assert row.link != 0;
             assert row.expireTime != 0;
 
-            PageUtils.putLong(buf, off, row.expireTime);
-            PageUtils.putLong(buf, off + 8, row.link);
+            PageUtils.putLong(pageAddr, off, row.expireTime);
+            PageUtils.putLong(pageAddr, off + 8, row.link);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(long dst,
+        @Override public void store(long dstPageAddr,
             int dstIdx,
             BPlusIO<PendingRow> srcIo,
-            long src,
+            long srcPageAddr,
             int srcIdx) throws IgniteCheckedException {
             int dstOff = offset(dstIdx);
 
-            long link = ((PendingRowIO)srcIo).getLink(src, srcIdx);
-            long expireTime = ((PendingRowIO)srcIo).getExpireTime(src, srcIdx);
+            long link = ((PendingRowIO)srcIo).getLink(srcPageAddr, srcIdx);
+            long expireTime = ((PendingRowIO)srcIo).getExpireTime(srcPageAddr, srcIdx);
 
-            PageUtils.putLong(dst, dstOff, expireTime);
-            PageUtils.putLong(dst, dstOff + 8, link);
+            PageUtils.putLong(dstPageAddr, dstOff, expireTime);
+            PageUtils.putLong(dstPageAddr, dstOff + 8, link);
         }
 
         /** {@inheritDoc} */
-        @Override public PendingRow getLookupRow(BPlusTree<PendingRow, ?> tree, long buf, int idx)
+        @Override public PendingRow getLookupRow(BPlusTree<PendingRow, ?> tree, long pageAddr, int idx)
             throws IgniteCheckedException {
-            return PendingRow.createRowWithKey(((PendingEntriesTree)tree).cctx, getExpireTime(buf, idx), getLink(buf, idx));
+            return PendingRow.createRowWithKey(((PendingEntriesTree)tree).cctx,
+                getExpireTime(pageAddr, idx),
+                getLink(pageAddr, idx));
         }
 
         /** {@inheritDoc} */
-        @Override public long getExpireTime(long buf, int idx) {
-            return PageUtils.getLong(buf, offset(idx));
+        @Override public long getExpireTime(long pageAddr, int idx) {
+            return PageUtils.getLong(pageAddr, offset(idx));
         }
 
         /** {@inheritDoc} */
-        @Override public long getLink(long buf, int idx) {
-            return PageUtils.getLong(buf, offset(idx) + 8);
+        @Override public long getLink(long pageAddr, int idx) {
+            return PageUtils.getLong(pageAddr, offset(idx) + 8);
         }
     }
 }

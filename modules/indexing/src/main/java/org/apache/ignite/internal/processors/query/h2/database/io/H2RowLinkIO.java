@@ -22,9 +22,9 @@ package org.apache.ignite.internal.processors.query.h2.database.io;
  */
 public interface H2RowLinkIO {
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param idx Index.
      * @return Row link.
      */
-    public long getLink(long buf, int idx);
+    public long getLink(long pageAddr, int idx);
 }

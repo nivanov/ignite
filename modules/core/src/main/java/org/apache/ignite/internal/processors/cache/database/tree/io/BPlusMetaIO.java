@@ -112,11 +112,11 @@ public class BPlusMetaIO extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Root level.
      */
-    public int getRootLevel(long buf) {
-        int lvls = getLevelsCount(buf); // The highest level page is root.
+    public int getRootLevel(long pageAddr) {
+        int lvls = getLevelsCount(pageAddr); // The highest level page is root.
 
         assert lvls > 0 : lvls;
 

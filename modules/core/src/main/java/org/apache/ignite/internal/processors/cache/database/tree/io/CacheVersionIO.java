@@ -78,25 +78,25 @@ public class CacheVersionIO {
     }
 
     /**
-     * @param buf Byte buffer.
+     * @param addr Write address.
      * @param ver Version to write.
      * @param allowNull Is {@code null} version allowed.
      */
-    public static void write(long buf, GridCacheVersion ver, boolean allowNull) {
+    public static void write(long addr, GridCacheVersion ver, boolean allowNull) {
         if (ver == null) {
             if (allowNull)
-                PageUtils.putByte(buf, 0, NULL_PROTO_VER);
+                PageUtils.putByte(addr, 0, NULL_PROTO_VER);
             else
                 throw new IllegalStateException("Cache version is null");
         }
         else {
             byte protoVer = 1; // Version of serialization protocol.
 
-            PageUtils.putByte(buf, 0, protoVer);
-            PageUtils.putInt(buf, 1, ver.topologyVersion());
-            PageUtils.putInt(buf, 5, ver.nodeOrderAndDrIdRaw());
-            PageUtils.putLong(buf, 9, ver.globalTime());
-            PageUtils.putLong(buf, 17, ver.order());
+            PageUtils.putByte(addr, 0, protoVer);
+            PageUtils.putInt(addr, 1, ver.topologyVersion());
+            PageUtils.putInt(addr, 5, ver.nodeOrderAndDrIdRaw());
+            PageUtils.putLong(addr, 9, ver.globalTime());
+            PageUtils.putLong(addr, 17, ver.order());
         }
     }
 
@@ -165,48 +165,23 @@ public class CacheVersionIO {
     }
 
     /**
-     * Gets needed buffer size to read the whole version instance.
-     * Does not change buffer position.
+     * Reads GridCacheVersion instance from the given address.
      *
-     * @param buf Buffer.
-     * @param allowNull Is {@code null} version allowed.
-     * @return Size of serialized version.
-     * @throws IgniteCheckedException If failed.
-     */
-    public static int readSize(long buf, boolean allowNull) throws IgniteCheckedException {
-        byte protoVer = checkProtocolVersion(PageUtils.getByte(buf, 0), allowNull);
-
-        switch (protoVer) {
-            case NULL_PROTO_VER:
-                return NULL_SIZE;
-
-            case 1:
-                return SIZE_V1;
-
-            default:
-                throw new IllegalStateException();
-        }
-    }
-
-    /**
-     * Reads GridCacheVersion instance from the given buffer. Moves buffer's position by the number of used
-     * bytes.
-     *
-     * @param buf Byte buffer.
+     * @param pageAddr Page address.
      * @param allowNull Is {@code null} version allowed.
      * @return Version.
      * @throws IgniteCheckedException If failed.
      */
-    public static GridCacheVersion read(long buf, boolean allowNull) throws IgniteCheckedException {
-        byte protoVer = checkProtocolVersion(PageUtils.getByte(buf, 0), allowNull);
+    public static GridCacheVersion read(long pageAddr, boolean allowNull) throws IgniteCheckedException {
+        byte protoVer = checkProtocolVersion(PageUtils.getByte(pageAddr, 0), allowNull);
 
         if (protoVer == NULL_PROTO_VER)
             return null;
 
-        int topVer = PageUtils.getInt(buf, 1);
-        int nodeOrderDrId = PageUtils.getInt(buf, 5);
-        long globalTime = PageUtils.getLong(buf, 9);
-        long order = PageUtils.getLong(buf, 17);
+        int topVer = PageUtils.getInt(pageAddr, 1);
+        int nodeOrderDrId = PageUtils.getInt(pageAddr, 5);
+        long globalTime = PageUtils.getLong(pageAddr, 9);
+        long order = PageUtils.getLong(pageAddr, 17);
 
         return new GridCacheVersion(topVer, nodeOrderDrId, globalTime, order);
     }

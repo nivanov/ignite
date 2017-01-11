@@ -191,19 +191,19 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override protected int compare(final BPlusIO<IndexItem> io, final long buf, final int idx,
+        @Override protected int compare(final BPlusIO<IndexItem> io, final long pageAddr, final int idx,
             final IndexItem row) throws IgniteCheckedException {
             final int off = ((IndexIO)io).getOffset(idx);
 
             int shift = 0;
 
             // Compare index names.
-            final byte len = PageUtils.getByte(buf, off + shift);
+            final byte len = PageUtils.getByte(pageAddr, off + shift);
 
             shift += BYTE_LEN;
 
             for (int i = 0; i < len && i < row.idxName.length; i++) {
-                final int cmp = Byte.compare(PageUtils.getByte(buf, off + i + shift), row.idxName[i]);
+                final int cmp = Byte.compare(PageUtils.getByte(pageAddr, off + i + shift), row.idxName[i]);
 
                 if (cmp != 0)
                     return cmp;
@@ -213,9 +213,9 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override protected IndexItem getRow(final BPlusIO<IndexItem> io, final long buf,
+        @Override protected IndexItem getRow(final BPlusIO<IndexItem> io, final long pageAddr,
             final int idx) throws IgniteCheckedException {
-            return readRow(buf, ((IndexIO)io).getOffset(idx));
+            return readRow(pageAddr, ((IndexIO)io).getOffset(idx));
         }
     }
 
@@ -247,74 +247,74 @@ public class MetadataStorage implements MetaStore {
     /**
      * Store row to buffer.
      *
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param off Offset in buf.
      * @param row Row to store.
      */
     private static void storeRow(
-        final long buf,
+        final long pageAddr,
         int off,
         final IndexItem row
     ) {
         // Index name length.
-        PageUtils.putByte(buf, off, (byte)row.idxName.length);
+        PageUtils.putByte(pageAddr, off, (byte)row.idxName.length);
         off++;
 
         // Index name.
-        PageUtils.putBytes(buf, off, row.idxName);
+        PageUtils.putBytes(pageAddr, off, row.idxName);
         off += row.idxName.length;
 
         // Page ID.
-        PageUtils.putLong(buf, off, row.pageId);
+        PageUtils.putLong(pageAddr, off, row.pageId);
     }
 
     /**
      * Copy row data.
      *
-     * @param dst Destination buffer.
+     * @param dstPageAddr Destination page address.
      * @param dstOff Destination buf offset.
-     * @param src Source buffer.
+     * @param srcPageAddr Source page address.
      * @param srcOff Src buf offset.
      */
     private static void storeRow(
-        final long dst,
+        final long dstPageAddr,
         int dstOff,
-        final long src,
+        final long srcPageAddr,
         int srcOff
     ) {
         // Index name length.
-        final byte len = PageUtils.getByte(src, srcOff);
+        final byte len = PageUtils.getByte(srcPageAddr, srcOff);
         srcOff++;
 
-        PageUtils.putByte(dst, dstOff, len);
+        PageUtils.putByte(dstPageAddr, dstOff, len);
         dstOff++;
 
-        PageHandler.copyMemory(src, srcOff, dst, dstOff, len);
+        PageHandler.copyMemory(srcPageAddr, srcOff, dstPageAddr, dstOff, len);
         srcOff += len;
         dstOff += len;
 
         // Page ID.
-        PageUtils.putLong(dst, dstOff, PageUtils.getLong(src, srcOff));
+        PageUtils.putLong(dstPageAddr, dstOff, PageUtils.getLong(srcPageAddr, srcOff));
     }
 
     /**
      * Read row from buffer.
      *
-     * @param buf Buffer to read.
-     * @param off Offset in buf.
+     * @param pageAddr Page address.
+     * @param off Offset.
      * @return Read row.
      */
-    private static IndexItem readRow(final long buf, int off) {
+    private static IndexItem readRow(final long pageAddr, int off) {
         // Index name length.
-        final int len = PageUtils.getByte(buf, off) & 0xFF;
+        final int len = PageUtils.getByte(pageAddr, off) & 0xFF;
         off++;
 
         // Index name.
-        final byte[] idxName = PageUtils.getBytes(buf, off, len);
+        final byte[] idxName = PageUtils.getBytes(pageAddr, off, len);
         off += len;
 
         // Page ID.
-        final long pageId = PageUtils.getLong(buf, off);
+        final long pageId = PageUtils.getLong(pageAddr, off);
 
         return new IndexItem(idxName, pageId);
     }
@@ -348,21 +348,21 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override public void storeByOffset(long buf, int off, IndexItem row) throws IgniteCheckedException {
-            storeRow(buf, off, row);
+        @Override public void storeByOffset(long pageAddr, int off, IndexItem row) throws IgniteCheckedException {
+            storeRow(pageAddr, off, row);
         }
 
         /** {@inheritDoc} */
-        @Override public void store(final long dst, final int dstIdx, final BPlusIO<IndexItem> srcIo,
-            final long src,
+        @Override public void store(final long dstPageAddr, final int dstIdx, final BPlusIO<IndexItem> srcIo,
+            final long srcPageAddr,
             final int srcIdx) throws IgniteCheckedException {
-            storeRow(dst, offset(dstIdx), src, ((IndexIO)srcIo).getOffset(srcIdx));
+            storeRow(dstPageAddr, offset(dstIdx), srcPageAddr, ((IndexIO)srcIo).getOffset(srcIdx));
         }
 
         /** {@inheritDoc} */
-        @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree, final long buf,
+        @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree, final long pageAddr,
             final int idx) throws IgniteCheckedException {
-            return readRow(buf, offset(idx));
+            return readRow(pageAddr, offset(idx));
         }
 
         /** {@inheritDoc} */
@@ -394,19 +394,19 @@ public class MetadataStorage implements MetaStore {
         }
 
         /** {@inheritDoc} */
-        @Override public void store(final long dst,
+        @Override public void store(final long dstPageAddr,
             final int dstIdx,
             final BPlusIO<IndexItem> srcIo,
-            final long src,
+            final long srcPageAddr,
             final int srcIdx) throws IgniteCheckedException {
-            storeRow(dst, offset(dstIdx), src, ((IndexIO)srcIo).getOffset(srcIdx));
+            storeRow(dstPageAddr, offset(dstIdx), srcPageAddr, ((IndexIO)srcIo).getOffset(srcIdx));
         }
 
         /** {@inheritDoc} */
         @Override public IndexItem getLookupRow(final BPlusTree<IndexItem, ?> tree,
-            final long buf,
+            final long pageAddr,
             final int idx) throws IgniteCheckedException {
-            return readRow(buf, offset(idx));
+            return readRow(pageAddr, offset(idx));
         }
 
         /** {@inheritDoc} */

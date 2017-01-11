@@ -84,6 +84,13 @@ public abstract class CacheObjectAdapter implements CacheObject, Externalizable 
         return putValue(addr, cacheObjectType(), valBytes, 0);
     }
 
+    /**
+     * @param addr Write address.
+     * @param type Object type.
+     * @param valBytes Value bytes array.
+     * @param valOff Value bytes array offset.
+     * @return
+     */
     public static int putValue(long addr, byte type, byte[] valBytes, int valOff) {
         int off = 0;
 

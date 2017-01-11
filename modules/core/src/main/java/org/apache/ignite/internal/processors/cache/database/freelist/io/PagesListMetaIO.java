@@ -53,67 +53,67 @@ public class PagesListMetaIO extends PageIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void initNewPage(long buf, long pageId, int pageSize) {
-        super.initNewPage(buf, pageId, pageSize);
+    @Override public void initNewPage(long pageAddr, long pageId, int pageSize) {
+        super.initNewPage(pageAddr, pageId, pageSize);
 
-        setCount(buf, 0);
-        setNextMetaPageId(buf, 0L);
+        setCount(pageAddr, 0);
+        setNextMetaPageId(pageAddr, 0L);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Stored items count.
      */
-    private int getCount(long buf) {
-        return PageUtils.getShort(buf, CNT_OFF);
+    private int getCount(long pageAddr) {
+        return PageUtils.getShort(pageAddr, CNT_OFF);
     }
 
     /**
-     * @param buf Buffer,
+     * @param pageAddr Page address.
      * @param cnt Stored items count.
      */
-    private void setCount(long buf, int cnt) {
+    private void setCount(long pageAddr, int cnt) {
         assert cnt >= 0 && cnt <= Short.MAX_VALUE : cnt;
 
-        PageUtils.putShort(buf, CNT_OFF, (short)cnt);
+        PageUtils.putShort(pageAddr, CNT_OFF, (short)cnt);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Next meta page ID.
      */
-    public long getNextMetaPageId(long buf) {
-        return PageUtils.getLong(buf, NEXT_META_PAGE_OFF);
+    public long getNextMetaPageId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, NEXT_META_PAGE_OFF);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param metaPageId Next meta page ID.
      */
-    public void setNextMetaPageId(long buf, long metaPageId) {
-        PageUtils.putLong(buf, NEXT_META_PAGE_OFF, metaPageId);
+    public void setNextMetaPageId(long pageAddr, long metaPageId) {
+        PageUtils.putLong(pageAddr, NEXT_META_PAGE_OFF, metaPageId);
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      */
-    public void resetCount(long buf) {
-        setCount(buf, 0);
+    public void resetCount(long pageAddr) {
+        setCount(pageAddr, 0);
     }
 
     /**
      * @param pageSize Page size.
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param bucket Bucket number.
      * @param tails Tails.
      * @param tailsOff Tails offset.
      * @return Number of items written.
      */
-    public int addTails(int pageSize, long buf, int bucket, PagesList.Stripe[] tails, int tailsOff) {
+    public int addTails(int pageSize, long pageAddr, int bucket, PagesList.Stripe[] tails, int tailsOff) {
         assert bucket >= 0 && bucket <= Short.MAX_VALUE : bucket;
 
-        int cnt = getCount(buf);
-        int cap = getCapacity(pageSize, buf);
+        int cnt = getCount(pageAddr);
+        int cap = getCapacity(pageSize, pageAddr);
 
         if (cnt == cap)
             return 0;
@@ -123,25 +123,25 @@ public class PagesListMetaIO extends PageIO {
         int write = Math.min(cap - cnt, tails.length - tailsOff);
 
         for (int i = 0; i < write; i++) {
-            PageUtils.putShort(buf, off, (short)bucket);
-            PageUtils.putLong(buf, off + 2, tails[tailsOff].tailId);
+            PageUtils.putShort(pageAddr, off, (short)bucket);
+            PageUtils.putLong(pageAddr, off + 2, tails[tailsOff].tailId);
 
             tailsOff++;
 
             off += ITEM_SIZE;
         }
 
-        setCount(buf, cnt + write);
+        setCount(pageAddr, cnt + write);
 
         return write;
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @param res Results map.
      */
-    public void getBucketsData(long buf, Map<Integer, GridLongList> res) {
-        int cnt = getCount(buf);
+    public void getBucketsData(long pageAddr, Map<Integer, GridLongList> res) {
+        int cnt = getCount(pageAddr);
 
         assert cnt >= 0 && cnt <= Short.MAX_VALUE : cnt;
 
@@ -151,10 +151,10 @@ public class PagesListMetaIO extends PageIO {
         int off = offset(0);
 
         for (int i = 0; i < cnt; i++) {
-            Integer bucket = (int)PageUtils.getShort(buf, off);
+            Integer bucket = (int)PageUtils.getShort(pageAddr, off);
             assert bucket >= 0 && bucket <= Short.MAX_VALUE : bucket;
 
-            long tailId = PageUtils.getLong(buf, off + 2);
+            long tailId = PageUtils.getLong(pageAddr, off + 2);
             assert tailId != 0;
 
             GridLongList list = res.get(bucket);
@@ -169,10 +169,10 @@ public class PagesListMetaIO extends PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Maximum number of items which can be stored in buffer.
      */
-    private int getCapacity(int pageSize, long buf) {
+    private int getCapacity(int pageSize, long pageAddr) {
         return (pageSize - ITEMS_OFF) / ITEM_SIZE;
     }
 

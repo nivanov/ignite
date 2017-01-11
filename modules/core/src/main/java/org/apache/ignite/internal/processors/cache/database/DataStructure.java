@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.processors.cache.database;
 
-import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.ignite.IgniteCheckedException;
@@ -184,12 +183,12 @@ public abstract class DataStructure implements PageLockListener {
     }
 
     /** {@inheritDoc} */
-    @Override public void onWriteLock(Page page, long buf) {
+    @Override public void onWriteLock(Page page, long pageAddr) {
         // No-op.
     }
 
     /** {@inheritDoc} */
-    @Override public void onWriteUnlock(Page page, long buf) {
+    @Override public void onWriteUnlock(Page page, long pageAddr) {
         // No-op.
     }
 
@@ -199,12 +198,12 @@ public abstract class DataStructure implements PageLockListener {
     }
 
     /** {@inheritDoc} */
-    @Override public void onReadLock(Page page, long buf) {
+    @Override public void onReadLock(Page page, long pageAddr) {
         // No-op.
     }
 
     /** {@inheritDoc} */
-    @Override public void onReadUnlock(Page page, long buf) {
+    @Override public void onReadUnlock(Page page, long pageAddr) {
         // No-op.
     }
 }

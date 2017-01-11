@@ -39,7 +39,7 @@ import org.apache.ignite.internal.processors.cache.database.tree.util.PageLockLi
  *    static methods (like {@code {@link #getPageId(long)}}) intentionally:
  *    this base format can not be changed between versions.
  *
- * 2. IO must correctly override {@link #initNewPage(long, long)} method and call super.
+ * 2. IO must correctly override {@link #initNewPage(long, long, int)} method and call super.
  *    We have logic that relies on this behavior.
  *
  * 3. Page IO type ID constant must be declared in this class to have a list of all the
@@ -200,11 +200,11 @@ public abstract class PageIO {
     }
 
     /**
-     * @param buf Buffer.
+     * @param pageAddr Page address.
      * @return Page ID.
      */
-    public static long getPageId(long buf) {
-        return PageUtils.getLong(buf, PAGE_ID_OFF);
+    public static long getPageId(long pageAddr) {
+        return PageUtils.getLong(pageAddr, PAGE_ID_OFF);
     }
 
     /**

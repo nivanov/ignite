@@ -90,15 +90,15 @@ public class BPlusTreeReuseSelfTest extends BPlusTreeSelfTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onReadLock(Page page, long buf) {
-            checkPageId(page, buf);
+        @Override public void onReadLock(Page page, long pageAddr) {
+            checkPageId(page, pageAddr);
 
             assertTrue(readLocks.get().add(page.id()));
         }
 
         /** {@inheritDoc} */
-        @Override public void onReadUnlock(Page page, long buf) {
-            checkPageId(page, buf);
+        @Override public void onReadUnlock(Page page, long pageAddr) {
+            checkPageId(page, pageAddr);
 
             assertTrue(readLocks.get().remove(page.id()));
         }
@@ -109,18 +109,18 @@ public class BPlusTreeReuseSelfTest extends BPlusTreeSelfTest {
         }
 
         /** {@inheritDoc} */
-        @Override public void onWriteLock(Page page, long buf) {
-            if (buf == 0L)
+        @Override public void onWriteLock(Page page, long pageAddr) {
+            if (pageAddr == 0L)
                 return; // Failed to lock.
 
-            checkPageId(page, buf);
+            checkPageId(page, pageAddr);
 
             assertTrue(writeLocks.get().add(page.id()));
         }
 
         /** {@inheritDoc} */
-        @Override public void onWriteUnlock(Page page, long buf) {
-            assertEquals(effectivePageId(page.id()), effectivePageId(PageIO.getPageId(buf)));
+        @Override public void onWriteUnlock(Page page, long pageAddr) {
+            assertEquals(effectivePageId(page.id()), effectivePageId(PageIO.getPageId(pageAddr)));
 
             assertTrue(writeLocks.get().remove(page.id()));
         }

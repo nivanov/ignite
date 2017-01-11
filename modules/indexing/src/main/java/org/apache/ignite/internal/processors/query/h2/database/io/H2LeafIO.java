@@ -44,31 +44,31 @@ public class H2LeafIO extends BPlusLeafIO<SearchRow> implements H2RowLinkIO {
     }
 
     /** {@inheritDoc} */
-    @Override public void storeByOffset(long buf, int off, SearchRow row) {
+    @Override public void storeByOffset(long pageAddr, int off, SearchRow row) {
         GridH2Row row0 = (GridH2Row)row;
 
         assert row0.link != 0;
 
-        PageUtils.putLong(buf, off, row0.link);
+        PageUtils.putLong(pageAddr, off, row0.link);
     }
 
     /** {@inheritDoc} */
-    @Override public void store(long dst, int dstIdx, BPlusIO<SearchRow> srcIo, long src, int srcIdx) {
+    @Override public void store(long dstPageAddr, int dstIdx, BPlusIO<SearchRow> srcIo, long srcPageAddr, int srcIdx) {
         assert srcIo == this;
 
-        PageUtils.putLong(dst, offset(dstIdx), getLink(src, srcIdx));
+        PageUtils.putLong(dstPageAddr, offset(dstIdx), getLink(srcPageAddr, srcIdx));
     }
 
     /** {@inheritDoc} */
-    @Override public SearchRow getLookupRow(BPlusTree<SearchRow,?> tree, long buf, int idx)
+    @Override public SearchRow getLookupRow(BPlusTree<SearchRow,?> tree, long pageAddr, int idx)
         throws IgniteCheckedException {
-        long link = getLink(buf, idx);
+        long link = getLink(pageAddr, idx);
 
         return ((H2Tree)tree).getRowFactory().getRow(link);
     }
 
     /** {@inheritDoc} */
-    @Override public long getLink(long buf, int idx) {
-        return PageUtils.getLong(buf, offset(idx));
+    @Override public long getLink(long pageAddr, int idx) {
+        return PageUtils.getLong(pageAddr, offset(idx));
     }
 }

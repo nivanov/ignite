@@ -285,6 +285,13 @@ public abstract class PageHandler<X, R> {
             (page.fullPageWalRecordPolicy() == FALSE || page.isDirty());
     }
 
+    /**
+     * @param srcAddr Source.
+     * @param dstAddr Destination.
+     * @param srcOff Source offset in bytes.
+     * @param dstOff Destination offset in bytes.
+     * @param cnt Bytes count to copy.
+     */
     public static void copyMemory(long srcAddr, long dstAddr, long srcOff, long dstOff, long cnt) {
         GridUnsafe.copyMemory(null, srcAddr + srcOff, null, dstAddr + dstOff, cnt);
     }
