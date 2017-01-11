@@ -15,18 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.ignite.internal.processors.cache.expiry;
+package org.apache.ignite.yardstick.cache;
 
-import javax.cache.configuration.Factory;
-import org.apache.ignite.cache.store.CacheStore;
+import java.util.Map;
+import java.util.Set;
+import org.apache.ignite.internal.util.typedef.internal.U;
 
 /**
- *
+ * Ignite benchmark that performs getAll operations.
  */
-public class IgniteCacheAtomicPrimaryWriteOrderWithStoreExpiryPolicyTest extends
-    IgniteCacheAtomicPrimaryWriteOrderExpiryPolicyTest {
+public class IgniteGetAllBenchmark extends IgniteGetBenchmark {
     /** {@inheritDoc} */
-    @Override protected Factory<CacheStore> cacheStoreFactory() {
-        return new TestStoreFactory();
+    @Override public boolean test(Map<Object, Object> ctx) throws Exception {
+        Set<Integer> keys = U.newHashSet(args.batch());
+
+        while (keys.size() < args.batch()) {
+            int key = nextRandom(args.range());
+
+            keys.add(key);
+        }
+
+        cache.getAll(keys);
+
+        return true;
     }
 }
