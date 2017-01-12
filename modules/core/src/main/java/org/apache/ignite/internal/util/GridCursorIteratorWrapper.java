@@ -1,9 +1,8 @@
 package org.apache.ignite.internal.util;
 
-import org.apache.ignite.*;
-import org.apache.ignite.internal.util.lang.*;
-
-import java.util.*;
+import java.util.Iterator;
+import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.internal.util.lang.GridCursor;
 
 /**
  * Wrap {@code Iterator} and adapt it to {@code GridCursor}.

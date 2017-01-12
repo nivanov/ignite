@@ -17,7 +17,7 @@ import org.apache.ignite.internal.processors.query.h2.sql.H2CompareBigQueryDistr
  */
 public class IgniteDistributedJoinTestSuite extends TestSuite {
     /**
-     *
+     * @return Suite.
      */
     public static TestSuite suite() {
         TestSuite suite = new TestSuite("Distributed Joins Test Suite.");
