@@ -396,6 +396,11 @@ public class FreeListImplSelfTest extends GridCommonAbstractTest {
         @Override public void link(long link) {
             this.link = link;
         }
+
+        /** {@inheritDoc} */
+        @Override public int hash() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /**
