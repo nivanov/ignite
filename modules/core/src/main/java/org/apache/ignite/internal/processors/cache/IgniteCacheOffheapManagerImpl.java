@@ -1165,8 +1165,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
             this.rowStore = rowStore;
             this.cctx = cctx;
 
-            if (initNew)
-                initNew();
+            initTree(initNew);
         }
 
         /** {@inheritDoc} */
@@ -1444,8 +1443,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
             this.cctx = cctx;
 
-            if (initNew)
-                initNew();
+            initTree(initNew);
         }
 
         /** {@inheritDoc} */
