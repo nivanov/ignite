@@ -948,7 +948,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
             rootPageId = getFirstPageId(meta, rootLvl);
 
-            validateDownPages(meta, rootPageId, 0L, rootLvl);
+            validateDownPages(rootPageId, 0L, rootLvl);
 
             validateDownKeys(rootPageId, null);
         }
@@ -1099,13 +1099,12 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
     }
 
     /**
-     * @param meta Meta page.
      * @param pageId Page ID.
      * @param fwdId Forward ID.
      * @param lvl Level.
      * @throws IgniteCheckedException If failed.
      */
-    private void validateDownPages(Page meta, long pageId, long fwdId, final int lvl) throws IgniteCheckedException {
+    private void validateDownPages(long pageId, long fwdId, final int lvl) throws IgniteCheckedException {
         try (Page page = page(pageId)) {
             long pageAddr = readLock(page); // No correctness guaranties.
 
@@ -1137,7 +1136,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
                 else {
                     // Recursively go down if we are on inner level.
                     for (int i = 0; i < cnt; i++)
-                        validateDownPages(meta, inner(io).getLeft(pageAddr, i), inner(io).getRight(pageAddr, i), lvl - 1);
+                        validateDownPages(inner(io).getLeft(pageAddr, i), inner(io).getRight(pageAddr, i), lvl - 1);
 
                     if (fwdId != 0) {
                         // For the rightmost child ask neighbor.
@@ -1158,7 +1157,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
                     pageId = inner(io).getLeft(pageAddr, cnt); // The same as io.getRight(cnt - 1) but works for routing pages.
 
-                    validateDownPages(meta, pageId, fwdId, lvl - 1);
+                    validateDownPages(pageId, fwdId, lvl - 1);
                 }
             }
             finally {
@@ -1961,10 +1960,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
             assert meta0 != null;
 
-            rootLvl = meta0.rootLvl;
-            rootId = meta0.rootId;
-
-            restartFromRoot(rootId, rootLvl, globalRmvId.get());
+            restartFromRoot(meta0.rootId, meta0.rootLvl, globalRmvId.get());
         }
 
         /**
