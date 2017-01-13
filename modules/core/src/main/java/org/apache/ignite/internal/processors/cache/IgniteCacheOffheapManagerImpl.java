@@ -1074,41 +1074,6 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
     /**
      *
      */
-    private static class LinkSearchRow implements CacheSearchRow {
-        /** */
-        private final int hash;
-
-        /** */
-        private final long link;
-
-        /**
-         * @param hash Key hash code.
-         * @param link Link.
-         */
-        LinkSearchRow(int hash, long link) {
-            this.hash = hash;
-            this.link = link;
-        }
-
-        /** {@inheritDoc} */
-        @Override public KeyCacheObject key() {
-            throw new UnsupportedOperationException();
-        }
-
-        /** {@inheritDoc} */
-        @Override public long link() {
-            return link;
-        }
-
-        /** {@inheritDoc} */
-        @Override public int hash() {
-            return hash;
-        }
-    }
-
-    /**
-     *
-     */
     private class DataRow extends CacheDataRowAdapter {
         /** */
         protected int part = -1;
@@ -1119,8 +1084,9 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         /**
          * @param hash Hash code.
          * @param link Link.
+         * @param keyOnly If {@code true} initializes only key.
          */
-        DataRow(int hash, long link) {
+        DataRow(int hash, long link, boolean keyOnly) {
             super(link);
 
             this.hash = hash;
@@ -1129,7 +1095,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
             try {
                 // We can not init data row lazily because underlying buffer can be concurrently cleared.
-                initFromLink(cctx, false);
+                initFromLink(cctx, keyOnly);
             }
             catch (IgniteCheckedException e) {
                 throw new IgniteException(e);
@@ -1238,41 +1204,41 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
             PageMemory pageMem = cctx.shared().database().pageMemory();
 
-            try (Page page = page(pageId(link))) {
-                long pageAddr = page.getForReadPointer(); // Non-empty data page must not be recycled.
+//            try (Page page = page(pageId(link))) {
+//            }
+            long pageAddr = pageMem.readLockPage0(0, pageId(link)); // Non-empty data page must not be recycled.
 
-                assert pageAddr != 0L : link;
+            assert pageAddr != 0L : link;
 
-                try {
-                    DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
+            try {
+                DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
 
-                    DataPagePayload data = io.readPayload(pageAddr,
-                        itemId(link),
-                        pageMem.pageSize());
+                DataPagePayload data = io.readPayload(pageAddr,
+                    itemId(link),
+                    pageMem.pageSize());
 
-                    if (data.nextLink() == 0) {
-                        long addr = pageAddr + data.offset();
+                if (data.nextLink() == 0) {
+                    long addr = pageAddr + data.offset();
 
-                        int len = PageUtils.getInt(addr, 0);
+                    int len = PageUtils.getInt(addr, 0);
 
-                        int size = Math.min(bytes.length, len);
+                    int size = Math.min(bytes.length, len);
 
-                        addr += 5; // Skip length and type byte.
+                    addr += 5; // Skip length and type byte.
 
-                        for (int i = 0; i < size; i++) {
-                            byte b1 = PageUtils.getByte(addr, i);
-                            byte b2 = bytes[i];
+                    for (int i = 0; i < size; i++) {
+                        byte b1 = PageUtils.getByte(addr, i);
+                        byte b2 = bytes[i];
 
-                            if (b1 != b2)
-                                return b1 > b2 ? 1 : -1;
-                        }
-
-                        return Integer.compare(len, bytes.length);
+                        if (b1 != b2)
+                            return b1 > b2 ? 1 : -1;
                     }
+
+                    return Integer.compare(len, bytes.length);
                 }
-                finally {
-                    page.releaseRead();
-                }
+            }
+            finally {
+                pageMem.readUnlockPage0(pageAddr);
             }
 
             // TODO GG-11768.
@@ -1323,7 +1289,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          * @return Search row.
          */
         private CacheSearchRow keySearchRow(int hash, long link) {
-            return new LinkSearchRow(hash, link);
+            return new DataRow(hash, link, true);
         }
 
         /**
@@ -1332,7 +1298,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          * @return Data row.
          */
         private CacheDataRow dataRow(int hash, long link) {
-            return new DataRow(hash, link);
+            return new DataRow(hash, link, false);
         }
     }
 

@@ -220,13 +220,13 @@ public class PageMemoryNoStoreImpl implements PageMemory {
             relPtr = seg.borrowFreePage();
 
             if (relPtr != INVALID_REL_PTR) {
-                absPtr = seg.absolute(relPtr);
+                absPtr = seg.absolute(PageIdUtils.pageIndex(relPtr));
 
                 break;
             }
         }
 
-        // No segments conatined a free page.
+        // No segments contained a free page.
         if (relPtr == INVALID_REL_PTR) {
             int segAllocIdx = nextRoundRobinIndex();
 
@@ -238,7 +238,7 @@ public class PageMemoryNoStoreImpl implements PageMemory {
                 relPtr = seg.allocateFreePage(flags);
 
                 if (relPtr != INVALID_REL_PTR) {
-                    absPtr = seg.absolute(relPtr);
+                    absPtr = seg.absolute(PageIdUtils.pageIndex(relPtr));
 
                     break;
                 }
@@ -263,7 +263,7 @@ public class PageMemoryNoStoreImpl implements PageMemory {
 
     /** {@inheritDoc} */
     @Override public boolean freePage(int cacheId, long pageId) {
-        Segment seg = segment(pageId);
+        Segment seg = segment(PageIdUtils.pageIndex(pageId));
 
         seg.releaseFreePage(pageId);
 
@@ -272,9 +272,11 @@ public class PageMemoryNoStoreImpl implements PageMemory {
 
     /** {@inheritDoc} */
     @Override public Page page(int cacheId, long pageId) throws IgniteCheckedException {
-        Segment seg = segment(pageId);
+        int pageIdx = PageIdUtils.pageIndex(pageId);
 
-        return seg.acquirePage(cacheId, pageId);
+        Segment seg = segment(pageIdx);
+
+        return seg.acquirePage(pageIdx, pageId);
     }
 
     /** {@inheritDoc} */
@@ -285,7 +287,7 @@ public class PageMemoryNoStoreImpl implements PageMemory {
     /** {@inheritDoc} */
     @Override public void releasePage(Page p) {
         if (trackAcquiredPages) {
-            Segment seg = segment(p.id());
+            Segment seg = segment(PageIdUtils.pageIndex(p.id()));
 
             seg.onPageRelease();
         }
@@ -361,6 +363,23 @@ public class PageMemoryNoStoreImpl implements PageMemory {
      */
     boolean readLockPage(long absPtr, int tag) {
         return rwLock.readLock(absPtr + LOCK_OFFSET, tag);
+    }
+
+    @Override public long readLockPage0(int cacheId, long pageId) {
+        int pageIdx = PageIdUtils.pageIndex(pageId);
+
+        Segment seg = segment(pageIdx);
+
+        long absPtr = seg.absolute(pageIdx);
+
+        if (readLockPage(absPtr, PageIdUtils.tag(pageId)))
+            return absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD;
+
+        return 0;
+    }
+
+    @Override public void readUnlockPage0(long pageAddr) {
+        readUnlockPage(pageAddr - PAGE_OVERHEAD);
     }
 
     /**
@@ -442,12 +461,10 @@ public class PageMemoryNoStoreImpl implements PageMemory {
     }
 
     /**
-     * @param pageId Page ID.
+     * @param pageIdx Page index.
      * @return Segment.
      */
-    private Segment segment(long pageId) {
-        long pageIdx = PageIdUtils.pageIndex(pageId);
-
+    private Segment segment(int pageIdx) {
         int segIdx = segmentIndex(pageIdx);
 
         return segments[segIdx];
@@ -537,18 +554,17 @@ public class PageMemoryNoStoreImpl implements PageMemory {
         }
 
         /**
-         * @param cacheId Cache ID.
          * @param pageId Page ID to pin.
          * @return Pinned page impl.
          */
         @SuppressWarnings("TypeMayBeWeakened")
-        private PageNoStoreImpl acquirePage(int cacheId, long pageId) {
-            long absPtr = absolute(pageId);
+        private PageNoStoreImpl acquirePage(int pageIdx, long pageId) {
+            long absPtr = absolute(pageIdx);
 
             if (trackAcquiredPages)
                 acquiredPages.incrementAndGet();
 
-            return new PageNoStoreImpl(PageMemoryNoStoreImpl.this, absPtr, cacheId, pageId);
+            return new PageNoStoreImpl(PageMemoryNoStoreImpl.this, absPtr, pageId);
         }
 
         /**
@@ -558,12 +574,10 @@ public class PageMemoryNoStoreImpl implements PageMemory {
         }
 
         /**
-         * @param relativePtr Relative pointer.
+         * @param pageIdx Page index.
          * @return Absolute pointer.
          */
-        private long absolute(long relativePtr) {
-            int pageIdx = PageIdUtils.pageIndex(relativePtr);
-
+        private long absolute(int pageIdx) {
             pageIdx &= idxMask;
 
             long off = ((long)pageIdx) * sysPageSize;
@@ -589,10 +603,12 @@ public class PageMemoryNoStoreImpl implements PageMemory {
          * @param pageId Page ID to release.
          */
         private void releaseFreePage(long pageId) {
-            // Clear out flags and file ID.
-            long relPtr = PageIdUtils.pageId(0, (byte)0, PageIdUtils.pageIndex(pageId));
+            int pageIdx = PageIdUtils.pageIndex(pageId);
 
-            long absPtr = absolute(relPtr);
+            // Clear out flags and file ID.
+            long relPtr = PageIdUtils.pageId(0, (byte)0, pageIdx);
+
+            long absPtr = absolute(pageIdx);
 
             // Second, write clean relative pointer instead of page ID.
             writePageId(absPtr, relPtr);
@@ -624,7 +640,7 @@ public class PageMemoryNoStoreImpl implements PageMemory {
                 long cnt = ((freePageRelPtrMasked & COUNTER_MASK) + COUNTER_INC) & COUNTER_MASK;
 
                 if (freePageRelPtr != INVALID_REL_PTR) {
-                    long freePageAbsPtr = absolute(freePageRelPtr);
+                    long freePageAbsPtr = absolute(PageIdUtils.pageIndex(freePageRelPtr));
 
                     long nextFreePageRelPtr = GridUnsafe.getLong(freePageAbsPtr) & ADDRESS_MASK;
 

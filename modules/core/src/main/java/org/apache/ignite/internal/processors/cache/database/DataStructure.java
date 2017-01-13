@@ -162,6 +162,14 @@ public abstract class DataStructure implements PageLockListener {
         return PageHandler.readLock(page, this);
     }
 
+    protected final long readLock0(long pageId) {
+        return pageMem.readLockPage0(0, pageId);
+    }
+
+    protected final void readUnlock0(long pageAddr) {
+        pageMem.readUnlockPage0(pageAddr);
+    }
+
     /**
      * @param page Page.
      * @param buf Buffer.

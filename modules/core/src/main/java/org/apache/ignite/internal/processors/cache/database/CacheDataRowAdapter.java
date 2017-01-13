@@ -93,45 +93,45 @@ public class CacheDataRowAdapter implements CacheDataRow {
         do {
             PageMemory pageMem = cctx.shared().database().pageMemory();
 
-            try (Page page = page(pageId(nextLink), cctx)) {
-                long pageAddr = page.getForReadPointer(); // Non-empty data page must not be recycled.
+            long pageAddr = pageMem.readLockPage0(0, pageId(nextLink)); // Non-empty data page must not be recycled.
 
-                assert pageAddr != 0L : nextLink;
+            assert pageAddr != 0L : nextLink;
 
-                try {
-                    DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
+            try {
+                DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
 
-                    DataPagePayload data = io.readPayload(pageAddr,
-                        itemId(nextLink),
-                        pageMem.pageSize());
+                DataPagePayload data = io.readPayload(pageAddr,
+                    itemId(nextLink),
+                    pageMem.pageSize());
 
-                    nextLink = data.nextLink();
+                nextLink = data.nextLink();
 
-                    if (first) {
-                        if (nextLink == 0) {
-                            // Fast path for a single page row.
-                            readFullRow(coctx, pageAddr + data.offset(), keyOnly);
+                if (first) {
+                    if (nextLink == 0) {
+                        // Fast path for a single page row.
+                        readFullRow(coctx, pageAddr + data.offset(), keyOnly);
 
-                            return;
-                        }
-
-                        first = false;
+                        return;
                     }
 
-                    ByteBuffer buf = pageMem.pageBuffer(pageAddr);
-
-                    buf.position(data.offset());
-                    buf.limit(data.offset() + data.payloadSize());
-
-                    incomplete = readFragment(coctx, buf, keyOnly, incomplete);
-
-                    if (keyOnly && key != null)
-                        return;
+                    first = false;
                 }
-                finally {
-                    page.releaseRead();
-                }
+
+                ByteBuffer buf = pageMem.pageBuffer(pageAddr);
+
+                buf.position(data.offset());
+                buf.limit(data.offset() + data.payloadSize());
+
+                incomplete = readFragment(coctx, buf, keyOnly, incomplete);
+
+                if (keyOnly && key != null)
+                    return;
             }
+            finally {
+                pageMem.readUnlockPage0(pageAddr);
+            }
+//            try (Page page = page(pageId(nextLink), cctx)) {
+//            }
         }
         while(nextLink != 0);
 
@@ -200,17 +200,13 @@ public class CacheDataRowAdapter implements CacheDataRow {
         int len = PageUtils.getInt(addr, off);
         off += 4;
 
-        if (len == 0)
-            key = null;
-        else {
-            byte type = PageUtils.getByte(addr, off);
-            off++;
+        byte type = PageUtils.getByte(addr, off);
+        off++;
 
-            byte[] bytes = PageUtils.getBytes(addr, off, len);
-            off += len;
+        byte[] bytes = PageUtils.getBytes(addr, off, len);
+        off += len;
 
-            key = coctx.processor().toKeyCacheObject(coctx, type, bytes);
-        }
+        key = coctx.processor().toKeyCacheObject(coctx, type, bytes);
 
         if (keyOnly) {
             assert key != null: "key";
@@ -221,17 +217,13 @@ public class CacheDataRowAdapter implements CacheDataRow {
         len = PageUtils.getInt(addr, off);
         off += 4;
 
-        if (len == 0)
-            val = null;
-        else {
-            byte type = PageUtils.getByte(addr, off);
-            off++;
+        type = PageUtils.getByte(addr, off);
+        off++;
 
-            byte[] bytes = PageUtils.getBytes(addr, off, len);
-            off += len;
+        bytes = PageUtils.getBytes(addr, off, len);
+        off += len;
 
-            val = coctx.processor().toCacheObject(coctx, type, bytes);
-        }
+        val = coctx.processor().toCacheObject(coctx, type, bytes);
 
         ver = CacheVersionIO.read(addr + off, false);
 
