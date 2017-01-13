@@ -116,6 +116,23 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
     private final AtomicLong globalRmvId;
 
     /** */
+    private final RowClosure<L, T> oldRowC = new RowClosure<L, T>() {
+        @Override public T oldRow(BPlusIO<L> io, long pageAddr, int idx) throws IgniteCheckedException {
+            return getRow(io, pageAddr, idx);
+        }
+    };
+
+    public RowClosure<L, T> noOldValue() {
+        return (RowClosure)NO_OLD_VAL;
+    }
+
+    private static final BPlusTree.RowClosure<Object, Object> NO_OLD_VAL = new RowClosure<Object, Object>() {
+        @Override public Object oldRow(BPlusIO<Object> io, long pageAddr, int idx) throws IgniteCheckedException {
+            return null;
+        }
+    };
+
+    /** */
     private final GridTreePrinter<Long> treePrinter = new GridTreePrinter<Long>() {
         /** */
         private boolean keys = true;
@@ -317,7 +334,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
                 assert p.oldRow == null;
 
                 // Get old row in leaf page to reduce contention at upper level.
-                p.oldRow = getRow(io, pageAddr, idx);
+                p.oldRow = p.oldRowC.oldRow(io, pageAddr, idx);
 
                 p.finish();
 
@@ -1518,19 +1535,32 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
      * {@inheritDoc}
      */
     @Override public final T put(T row) throws IgniteCheckedException {
-        return put(row, null);
+        return put(row, (ReuseBag)null);
+    }
+
+    public void putx(T row) throws IgniteCheckedException {
+        put(row, noOldValue());
+    }
+
+    public final <R> R put(T row, RowClosure<L, R> c) throws IgniteCheckedException {
+        Put p = new Put(row, null, c);
+
+        return (R)put0(p);
+    }
+
+    public final T put(T row, ReuseBag bag) throws IgniteCheckedException {
+        Put p = new Put(row, bag, oldRowC);
+
+        return (T)put0(p);
     }
 
     /**
-     * @param row Row.
-     * @param bag Reuse bag.
+     * @param p Put operation.
      * @return Old row.
      * @throws IgniteCheckedException If failed.
      */
-    public final T put(T row, ReuseBag bag) throws IgniteCheckedException {
+    private Object put0(Put p) throws IgniteCheckedException {
         checkDestroyed();
-
-        Put p = new Put(row, bag);
 
         try {
             for (;;) { // Go down with retries.
@@ -1566,13 +1596,13 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
             }
         }
         catch (IgniteCheckedException e) {
-            throw new IgniteCheckedException("Runtime failure on row: " + row, e);
+            throw new IgniteCheckedException("Runtime failure on row: " + p.row, e);
         }
         catch (RuntimeException e) {
-            throw new IgniteException("Runtime failure on row: " + row, e);
+            throw new IgniteException("Runtime failure on row: " + p.row, e);
         }
         catch (AssertionError e) {
-            throw new AssertionError("Assertion error on row: " + row, e);
+            throw new AssertionError("Assertion error on row: " + p.row, e);
         }
         finally {
             p.releaseMeta();
@@ -2084,7 +2114,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         private long rightId;
 
         /** Replaced row if any. */
-        private T oldRow;
+        private Object oldRow;
 
         /**
          * This page is kept locked after split until insert to the upper level will not be finished.
@@ -2107,14 +2137,18 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         /** */
         private ReuseBag bag;
 
+        /** */
+        private final RowClosure<L, ?> oldRowC;
+
         /**
          * @param row Row.
          * @param bag Reuse bag.
          */
-        private Put(T row, ReuseBag bag) {
+        private Put(T row, ReuseBag bag, RowClosure<L, ?> oldRowC) {
             super(row);
 
             this.bag = bag;
+            this.oldRowC = oldRowC;
         }
 
         /** {@inheritDoc} */
@@ -3448,6 +3482,13 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
      * @throws IgniteCheckedException If failed.
      */
     protected abstract T getRow(BPlusIO<L> io, long pageAddr, int idx) throws IgniteCheckedException;
+
+    /**
+     *
+     */
+    public interface RowClosure<L, R> {
+        public R oldRow(BPlusIO<L> io, long pageAddr, int idx) throws IgniteCheckedException;
+    }
 
     /**
      * Forward cursor.
