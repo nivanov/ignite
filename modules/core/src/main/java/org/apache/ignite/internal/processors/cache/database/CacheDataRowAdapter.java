@@ -200,17 +200,13 @@ public class CacheDataRowAdapter implements CacheDataRow {
         int len = PageUtils.getInt(addr, off);
         off += 4;
 
-        if (len == 0)
-            key = null;
-        else {
-            byte type = PageUtils.getByte(addr, off);
-            off++;
+        byte type = PageUtils.getByte(addr, off);
+        off++;
 
-            byte[] bytes = PageUtils.getBytes(addr, off, len);
-            off += len;
+        byte[] bytes = PageUtils.getBytes(addr, off, len);
+        off += len;
 
-            key = coctx.processor().toKeyCacheObject(coctx, type, bytes);
-        }
+        key = coctx.processor().toKeyCacheObject(coctx, type, bytes);
 
         if (keyOnly) {
             assert key != null: "key";
@@ -221,17 +217,13 @@ public class CacheDataRowAdapter implements CacheDataRow {
         len = PageUtils.getInt(addr, off);
         off += 4;
 
-        if (len == 0)
-            val = null;
-        else {
-            byte type = PageUtils.getByte(addr, off);
-            off++;
+        type = PageUtils.getByte(addr, off);
+        off++;
 
-            byte[] bytes = PageUtils.getBytes(addr, off, len);
-            off += len;
+        bytes = PageUtils.getBytes(addr, off, len);
+        off += len;
 
-            val = coctx.processor().toCacheObject(coctx, type, bytes);
-        }
+        val = coctx.processor().toCacheObject(coctx, type, bytes);
 
         ver = CacheVersionIO.read(addr + off, false);
 
