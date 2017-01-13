@@ -1074,41 +1074,6 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
     /**
      *
      */
-    private static class LinkSearchRow implements CacheSearchRow {
-        /** */
-        private final int hash;
-
-        /** */
-        private final long link;
-
-        /**
-         * @param hash Key hash code.
-         * @param link Link.
-         */
-        LinkSearchRow(int hash, long link) {
-            this.hash = hash;
-            this.link = link;
-        }
-
-        /** {@inheritDoc} */
-        @Override public KeyCacheObject key() {
-            throw new UnsupportedOperationException();
-        }
-
-        /** {@inheritDoc} */
-        @Override public long link() {
-            return link;
-        }
-
-        /** {@inheritDoc} */
-        @Override public int hash() {
-            return hash;
-        }
-    }
-
-    /**
-     *
-     */
     private class DataRow extends CacheDataRowAdapter {
         /** */
         protected int part = -1;
@@ -1119,8 +1084,9 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         /**
          * @param hash Hash code.
          * @param link Link.
+         * @param keyOnly If {@code true} initializes only key.
          */
-        DataRow(int hash, long link) {
+        DataRow(int hash, long link, boolean keyOnly) {
             super(link);
 
             this.hash = hash;
@@ -1129,7 +1095,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
             try {
                 // We can not init data row lazily because underlying buffer can be concurrently cleared.
-                initFromLink(cctx, false);
+                initFromLink(cctx, keyOnly);
             }
             catch (IgniteCheckedException e) {
                 throw new IgniteException(e);
@@ -1324,7 +1290,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          * @return Search row.
          */
         private CacheSearchRow keySearchRow(int hash, long link) {
-            return new LinkSearchRow(hash, link);
+            return new DataRow(hash, link, true);
         }
 
         /**
@@ -1333,7 +1299,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          * @return Data row.
          */
         private CacheDataRow dataRow(int hash, long link) {
-            return new DataRow(hash, link);
+            return new DataRow(hash, link, false);
         }
     }
 
