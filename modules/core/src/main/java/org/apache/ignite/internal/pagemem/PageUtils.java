@@ -130,7 +130,7 @@ public class PageUtils {
         assert addr > 0 : addr;
         assert off >= 0;
         assert bytes != null;
-        assert bytesOff >= 0 && bytesOff < bytes.length : bytesOff;
+        assert bytesOff >= 0 && (bytesOff < bytes.length || bytes.length == 0) : bytesOff;
 
         GridUnsafe.copyMemory(bytes, GridUnsafe.BYTE_ARR_OFF + bytesOff, null, addr + off, bytes.length - bytesOff);
     }
