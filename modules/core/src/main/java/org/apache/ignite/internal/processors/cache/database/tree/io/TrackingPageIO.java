@@ -17,8 +17,8 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
+import java.nio.ByteBuffer;
 import org.apache.ignite.internal.pagemem.PageIdUtils;
-import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.processors.cache.database.tree.util.PageHandler;
 
 /**
@@ -71,13 +71,13 @@ public class TrackingPageIO extends PageIO {
     /**
      * Will mark pageId as changed for next (!) snapshotId
      *
-     * @param pageAddr Page address.
+     * @param buf Buffer.
      * @param pageId Page id.
      * @param nextSnapshotTag tag of next snapshot.
      * @param pageSize Page size.
      */
-    public boolean markChanged(long pageAddr, long pageId, long nextSnapshotTag, long lastSuccessfulSnapshotTag, int pageSize) {
-        validateSnapshotId(pageAddr, nextSnapshotTag, lastSuccessfulSnapshotTag, pageSize);
+    public boolean markChanged(ByteBuffer buf, long pageId, long nextSnapshotTag, long lastSuccessfulSnapshotTag, int pageSize) {
+        validateSnapshotId(buf, nextSnapshotTag, lastSuccessfulSnapshotTag, pageSize);
 
         int cntOfPage = countOfPageToTrack(pageSize);
 
@@ -87,7 +87,7 @@ public class TrackingPageIO extends PageIO {
 
         int idx = sizeOff + SIZE_FIELD_SIZE + (idxToUpdate >> 3);
 
-        byte byteToUpdate = PageUtils.getByte(pageAddr, idx);
+        byte byteToUpdate = buf.get(idx);
 
         int updateTemplate = 1 << (idxToUpdate & 0b111);
 
@@ -96,28 +96,28 @@ public class TrackingPageIO extends PageIO {
         if (byteToUpdate == newVal)
             return false;
 
-        PageUtils.putByte(pageAddr, idx, newVal);
+        buf.put(idx, newVal);
 
-        short newSize = (short)(PageUtils.getShort(pageAddr, sizeOff) + 1);
+        short newSize = (short)(buf.getShort(sizeOff) + 1);
 
-        PageUtils.putShort(pageAddr, sizeOff, newSize);
+        buf.putShort(sizeOff, newSize);
 
-        assert newSize == countOfChangedPage(pageAddr, nextSnapshotTag, pageSize);
+        assert newSize == countOfChangedPage(buf, nextSnapshotTag, pageSize);
 
         return true;
     }
 
     /**
-     * @param pageAddr Page address.
+     * @param buf Buffer.
      * @param nextSnapshotTag Next snapshot id.
      * @param lastSuccessfulSnapshotId Last successful snapshot id.
      * @param pageSize Page size.
      */
-    private void validateSnapshotId(long pageAddr, long nextSnapshotTag, long lastSuccessfulSnapshotId, int pageSize) {
+    private void validateSnapshotId(ByteBuffer buf, long nextSnapshotTag, long lastSuccessfulSnapshotId, int pageSize) {
         assert nextSnapshotTag != lastSuccessfulSnapshotId : "nextSnapshotTag = " + nextSnapshotTag +
             ", lastSuccessfulSnapshotId = " + lastSuccessfulSnapshotId;
 
-        long last = getLastSnapshotTag(pageAddr);
+        long last = getLastSnapshotTag(buf);
 
         assert last <= nextSnapshotTag : "last = " + last + ", nextSnapshotTag = " + nextSnapshotTag;
 
@@ -127,9 +127,9 @@ public class TrackingPageIO extends PageIO {
         int cntOfPage = countOfPageToTrack(pageSize);
 
         if (last <= lastSuccessfulSnapshotId) { //we can drop our data
-            PageUtils.putLong(pageAddr, LAST_SNAPSHOT_TAG_OFFSET, nextSnapshotTag);
+            buf.putLong(LAST_SNAPSHOT_TAG_OFFSET, nextSnapshotTag);
 
-            PageHandler.zeroMemory(pageAddr, SIZE_FIELD_OFFSET, pageSize - SIZE_FIELD_OFFSET);
+            PageHandler.zeroMemory(buf, SIZE_FIELD_OFFSET, buf.capacity() - SIZE_FIELD_OFFSET);
         } else { //we can't drop data, it is still necessary for incremental snapshots
             int len = cntOfPage >> 3;
 
@@ -139,55 +139,55 @@ public class TrackingPageIO extends PageIO {
             if (last - lastSuccessfulSnapshotId == 1) { //we should keep only data in last half
                 //new data will be written in the same half, we should move old data to another half
                 if ((nextSnapshotTag - last) % 2 == 0)
-                    PageHandler.copyMemory(pageAddr, pageAddr, sizeOff, sizeOff2, len + SIZE_FIELD_SIZE);
+                    PageHandler.copyMemory(buf, buf, sizeOff, sizeOff2, len + SIZE_FIELD_SIZE);
             } else { //last - lastSuccessfulSnapshotId > 1, e.g. we should merge two half in one
                 int newSize = 0;
                 int i = 0;
 
                 for (; i < len - 8; i += 8) {
-                    long newVal = PageUtils.getLong(pageAddr, sizeOff + SIZE_FIELD_SIZE + i) | PageUtils.getLong(pageAddr, sizeOff2 + SIZE_FIELD_SIZE + i);
+                    long newVal = buf.getLong(sizeOff + SIZE_FIELD_SIZE + i) | buf.getLong(sizeOff2 + SIZE_FIELD_SIZE + i);
 
                     newSize += Long.bitCount(newVal);
 
-                    PageUtils.putLong(pageAddr, sizeOff2 + SIZE_FIELD_SIZE + i, newVal);
+                    buf.putLong(sizeOff2 + SIZE_FIELD_SIZE + i, newVal);
                 }
 
                 for (; i < len; i ++) {
-                    byte newVal = (byte)(PageUtils.getByte(pageAddr, sizeOff + SIZE_FIELD_SIZE + i) | PageUtils.getByte(pageAddr, sizeOff2 + SIZE_FIELD_SIZE + i));
+                    byte newVal = (byte) (buf.get(sizeOff + SIZE_FIELD_SIZE + i) | buf.get(sizeOff2 + SIZE_FIELD_SIZE + i));
 
                     newSize += Integer.bitCount(newVal & 0xFF);
 
-                    PageUtils.putByte(pageAddr, sizeOff2 + SIZE_FIELD_SIZE + i, newVal);
+                    buf.put(sizeOff2 + SIZE_FIELD_SIZE + i, newVal);
                 }
 
-                PageUtils.putShort(pageAddr, sizeOff2, (short)newSize);
+                buf.putShort(sizeOff2, (short)newSize);
             }
 
-            PageUtils.putLong(pageAddr, LAST_SNAPSHOT_TAG_OFFSET, nextSnapshotTag);
+            buf.putLong(LAST_SNAPSHOT_TAG_OFFSET, nextSnapshotTag);
 
-            PageHandler.zeroMemory(pageAddr, sizeOff, len + SIZE_FIELD_SIZE);
+            PageHandler.zeroMemory(buf, sizeOff, len + SIZE_FIELD_SIZE);
         }
     }
 
     /**
-     * @param pageAddr Page address.
+     * @param buf Buffer.
      */
-    long getLastSnapshotTag(long pageAddr) {
-        return PageUtils.getLong(pageAddr, LAST_SNAPSHOT_TAG_OFFSET);
+    long getLastSnapshotTag(ByteBuffer buf) {
+        return buf.getLong(LAST_SNAPSHOT_TAG_OFFSET);
     }
 
     /**
      * Check that pageId was marked as changed between previous snapshot finish and current snapshot start.
      *
-     * @param pageAddr Page address.
+     * @param buf Buffer.
      * @param pageId Page id.
      * @param curSnapshotTag Snapshot tag.
      * @param pageSize Page size.
      */
-    public boolean wasChanged(long pageAddr, long pageId, long curSnapshotTag, long lastSuccessfulSnapshotTag, int pageSize) {
-        validateSnapshotId(pageAddr, curSnapshotTag + 1, lastSuccessfulSnapshotTag, pageSize);
+    public boolean wasChanged(ByteBuffer buf, long pageId, long curSnapshotTag, long lastSuccessfulSnapshotTag, int pageSize) {
+        validateSnapshotId(buf, curSnapshotTag + 1, lastSuccessfulSnapshotTag, pageSize);
 
-        if (countOfChangedPage(pageAddr, curSnapshotTag, pageSize) < 1)
+        if (countOfChangedPage(buf, curSnapshotTag, pageSize) < 1)
             return false;
 
         int cntOfPage = countOfPageToTrack(pageSize);
@@ -197,9 +197,9 @@ public class TrackingPageIO extends PageIO {
         byte byteToTest;
 
         if (useLeftHalf(curSnapshotTag))
-            byteToTest = PageUtils.getByte(pageAddr, BITMAP_OFFSET + (idxToTest >> 3));
+            byteToTest = buf.get(BITMAP_OFFSET + (idxToTest >> 3));
         else
-            byteToTest = PageUtils.getByte(pageAddr, BITMAP_OFFSET + SIZE_FIELD_SIZE + ((idxToTest + cntOfPage) >> 3));
+            byteToTest = buf.get(BITMAP_OFFSET + SIZE_FIELD_SIZE + ((idxToTest + cntOfPage) >> 3));
 
         int testTemplate = 1 << (idxToTest & 0b111);
 
@@ -207,22 +207,22 @@ public class TrackingPageIO extends PageIO {
     }
 
     /**
-     * @param pageAddr Page address.
+     * @param buf Buffer.
      * @param snapshotTag Snapshot tag.
      * @param pageSize Page size.
      *
      * @return count of pages which were marked as change for given snapshotTag
      */
-    public short countOfChangedPage(long pageAddr, long snapshotTag, int pageSize) {
-        long dif = getLastSnapshotTag(pageAddr) - snapshotTag;
+    public short countOfChangedPage(ByteBuffer buf, long snapshotTag, int pageSize) {
+        long dif = getLastSnapshotTag(buf) - snapshotTag;
 
         if (dif != 0 && dif != 1)
             return -1;
 
         if (useLeftHalf(snapshotTag))
-            return PageUtils.getShort(pageAddr, SIZE_FIELD_OFFSET);
+            return buf.getShort(SIZE_FIELD_OFFSET);
         else
-            return PageUtils.getShort(pageAddr, BITMAP_OFFSET + (countOfPageToTrack(pageSize) >> 3));
+            return buf.getShort(BITMAP_OFFSET + (countOfPageToTrack(pageSize) >> 3));
     }
 
     /**
@@ -262,14 +262,14 @@ public class TrackingPageIO extends PageIO {
     }
 
     /**
-     * @param pageAddr Page address.
+     * @param buf Buffer.
      * @param start Start.
      * @param curSnapshotTag Snapshot id.
      * @param pageSize Page size.
      * @return set pageId if it was changed or next closest one, if there is no changed page null will be returned
      */
-    public Long findNextChangedPage(long pageAddr, long start, long curSnapshotTag, long lastSuccessfulSnapshotTag, int pageSize) {
-        validateSnapshotId(pageAddr, curSnapshotTag + 1, lastSuccessfulSnapshotTag, pageSize);
+    public Long findNextChangedPage(ByteBuffer buf, long start, long curSnapshotTag, long lastSuccessfulSnapshotTag, int pageSize) {
+        validateSnapshotId(buf, curSnapshotTag + 1, lastSuccessfulSnapshotTag, pageSize);
 
         int cntOfPage = countOfPageToTrack(pageSize);
 
@@ -278,7 +278,7 @@ public class TrackingPageIO extends PageIO {
         if (start == trackingPage)
             return trackingPage;
 
-        if (countOfChangedPage(pageAddr, curSnapshotTag, pageSize) <= 0)
+        if (countOfChangedPage(buf, curSnapshotTag, pageSize) <= 0)
             return null;
 
         int idxToStartTest = (PageIdUtils.pageIndex(start) - COUNT_OF_EXTRA_PAGE) % cntOfPage;
@@ -292,7 +292,7 @@ public class TrackingPageIO extends PageIO {
         int stopIdx = zeroIdx + (cntOfPage >> 3);
 
         while (idx < stopIdx) {
-            byte byteToTest = PageUtils.getByte(pageAddr, idx);
+            byte byteToTest = buf.get(idx);
 
             if (byteToTest != 0) {
                 int foundSetBit;
@@ -302,7 +302,7 @@ public class TrackingPageIO extends PageIO {
                         PageIdUtils.flag(start),
                         PageIdUtils.pageIndex(trackingPage) + ((idx - zeroIdx) << 3) + foundSetBit);
 
-                    assert wasChanged(pageAddr, foundPageId, curSnapshotTag, lastSuccessfulSnapshotTag, pageSize);
+                    assert wasChanged(buf, foundPageId, curSnapshotTag, lastSuccessfulSnapshotTag, pageSize);
                     assert trackingPageFor(foundPageId, pageSize) == trackingPage;
 
                     return foundPageId;

@@ -18,6 +18,7 @@
 package org.apache.ignite.internal.pagemem.wal.record.delta;
 
 import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.internal.pagemem.PageMemory;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageMetaIO;
 
 /**
@@ -37,7 +38,7 @@ public class MetaPageUpdateLastSuccessfulFullSnapshotId extends PageDeltaRecord 
     }
 
     /** {@inheritDoc} */
-    @Override public void applyDelta(long pageAddr, int pageSize) throws IgniteCheckedException {
+    @Override public void applyDelta(PageMemory pageMem, long pageAddr) throws IgniteCheckedException {
         PageMetaIO io = PageMetaIO.VERSIONS.forPage(pageAddr);
 
         io.setLastSuccessfulFullSnapshotId(pageAddr, lastSuccessfulFullSnapshotId);
