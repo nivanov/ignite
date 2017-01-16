@@ -93,45 +93,45 @@ public class CacheDataRowAdapter implements CacheDataRow {
         do {
             PageMemory pageMem = cctx.shared().database().pageMemory();
 
-            long pageAddr = pageMem.readLockPage0(0, pageId(nextLink)); // Non-empty data page must not be recycled.
+            try (Page page = page(pageId(nextLink), cctx)) {
+                long pageAddr = page.getForReadPointer(); // Non-empty data page must not be recycled.
 
-            assert pageAddr != 0L : nextLink;
+                assert pageAddr != 0L : nextLink;
 
-            try {
-                DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
+                try {
+                    DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
 
-                DataPagePayload data = io.readPayload(pageAddr,
-                    itemId(nextLink),
-                    pageMem.pageSize());
+                    DataPagePayload data = io.readPayload(pageAddr,
+                        itemId(nextLink),
+                        pageMem.pageSize());
 
-                nextLink = data.nextLink();
+                    nextLink = data.nextLink();
 
-                if (first) {
-                    if (nextLink == 0) {
-                        // Fast path for a single page row.
-                        readFullRow(coctx, pageAddr + data.offset(), keyOnly);
+                    if (first) {
+                        if (nextLink == 0) {
+                            // Fast path for a single page row.
+                            readFullRow(coctx, pageAddr + data.offset(), keyOnly);
 
-                        return;
+                            return;
+                        }
+
+                        first = false;
                     }
 
-                    first = false;
+                    ByteBuffer buf = pageMem.pageBuffer(pageAddr);
+
+                    buf.position(data.offset());
+                    buf.limit(data.offset() + data.payloadSize());
+
+                    incomplete = readFragment(coctx, buf, keyOnly, incomplete);
+
+                    if (keyOnly && key != null)
+                        return;
                 }
-
-                ByteBuffer buf = pageMem.pageBuffer(pageAddr);
-
-                buf.position(data.offset());
-                buf.limit(data.offset() + data.payloadSize());
-
-                incomplete = readFragment(coctx, buf, keyOnly, incomplete);
-
-                if (keyOnly && key != null)
-                    return;
+                finally {
+                    page.releaseRead();
+                }
             }
-            finally {
-                pageMem.readUnlockPage0(pageAddr);
-            }
-//            try (Page page = page(pageId(nextLink), cctx)) {
-//            }
         }
         while(nextLink != 0);
 

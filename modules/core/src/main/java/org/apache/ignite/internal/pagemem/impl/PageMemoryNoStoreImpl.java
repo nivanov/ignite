@@ -365,23 +365,6 @@ public class PageMemoryNoStoreImpl implements PageMemory {
         return rwLock.readLock(absPtr + LOCK_OFFSET, tag);
     }
 
-    @Override public long readLockPage0(int cacheId, long pageId) {
-        int pageIdx = PageIdUtils.pageIndex(pageId);
-
-        Segment seg = segment(pageIdx);
-
-        long absPtr = seg.absolute(pageIdx);
-
-        if (readLockPage(absPtr, PageIdUtils.tag(pageId)))
-            return absPtr + PageMemoryNoStoreImpl.PAGE_OVERHEAD;
-
-        return 0;
-    }
-
-    @Override public void readUnlockPage0(long pageAddr) {
-        readUnlockPage(pageAddr - PAGE_OVERHEAD);
-    }
-
     /**
      * @param absPtr Page absolute address.
      */

@@ -96,29 +96,6 @@ public abstract class PageHandler<X, R> {
         }
     }
 
-    public static <X, R> R readPage(
-        PageMemory pageMem,
-        long pageId,
-        PageHandler<X, R> h,
-        X arg,
-        int intArg,
-        R lockFailed
-    ) throws IgniteCheckedException {
-        long pageAddr = pageMem.readLockPage0(0, pageId);
-
-        if (pageAddr == 0L)
-            return lockFailed;
-
-        try {
-            PageIO io = PageIO.getPageIO(pageAddr);
-
-            return h.run(null, io, pageAddr, arg, intArg);
-        }
-        finally {
-            pageMem.readUnlockPage0(pageAddr);
-        }
-    }
-
     /**
      * @param pageMem Page memory.
      * @param page Page.

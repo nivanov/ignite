@@ -1205,41 +1205,41 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
             PageMemory pageMem = cctx.shared().database().pageMemory();
 
-//            try (Page page = page(pageId(link))) {
-//            }
-            long pageAddr = pageMem.readLockPage0(0, pageId(link)); // Non-empty data page must not be recycled.
+            try (Page page = page(pageId(link))) {
+                long pageAddr = page.getForReadPointer(); // Non-empty data page must not be recycled.
 
-            assert pageAddr != 0L : link;
+                assert pageAddr != 0L : link;
 
-            try {
-                DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
+                try {
+                    DataPageIO io = DataPageIO.VERSIONS.forPage(pageAddr);
 
-                DataPagePayload data = io.readPayload(pageAddr,
-                    itemId(link),
-                    pageMem.pageSize());
+                    DataPagePayload data = io.readPayload(pageAddr,
+                        itemId(link),
+                        pageMem.pageSize());
 
-                if (data.nextLink() == 0) {
-                    long addr = pageAddr + data.offset();
+                    if (data.nextLink() == 0) {
+                        long addr = pageAddr + data.offset();
 
-                    int len = PageUtils.getInt(addr, 0);
+                        int len = PageUtils.getInt(addr, 0);
 
-                    int size = Math.min(bytes.length, len);
+                        int size = Math.min(bytes.length, len);
 
-                    addr += 5; // Skip length and type byte.
+                        addr += 5; // Skip length and type byte.
 
-                    for (int i = 0; i < size; i++) {
-                        byte b1 = PageUtils.getByte(addr, i);
-                        byte b2 = bytes[i];
+                        for (int i = 0; i < size; i++) {
+                            byte b1 = PageUtils.getByte(addr, i);
+                            byte b2 = bytes[i];
 
-                        if (b1 != b2)
-                            return b1 > b2 ? 1 : -1;
+                            if (b1 != b2)
+                                return b1 > b2 ? 1 : -1;
+                        }
+
+                        return Integer.compare(len, bytes.length);
                     }
-
-                    return Integer.compare(len, bytes.length);
                 }
-            }
-            finally {
-                pageMem.readUnlockPage0(pageAddr);
+                finally {
+                    page.releaseRead();
+                }
             }
 
             // TODO GG-11768.
