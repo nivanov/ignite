@@ -17,6 +17,7 @@
 
 package org.apache.ignite.internal.processors.cache;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
@@ -1303,6 +1304,17 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
     }
 
     /**
+     * @param buf Buffer.
+     * @param off Offset.
+     * @param link Link.
+     * @param hash Hash.
+     */
+    private static void store0(ByteBuffer buf, int off, long link, int hash) {
+        buf.putLong(off, link);
+        buf.putInt(off + 8, hash);
+    }
+
+    /**
      * @param pageAddr Page address.
      * @param off Offset.
      * @param link Link.
@@ -1346,6 +1358,13 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          */
         DataInnerIO(int ver) {
             super(T_DATA_REF_INNER, ver, true, 12);
+        }
+
+        /** {@inheritDoc} */
+        @Override public void storeByOffset(ByteBuffer buf, int off, CacheSearchRow row) throws IgniteCheckedException {
+            assert row.link() != 0;
+
+            store0(buf, off, row.link(), row.hash());
         }
 
         /** {@inheritDoc} */
@@ -1399,6 +1418,13 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          */
         DataLeafIO(int ver) {
             super(T_DATA_REF_LEAF, ver, 12);
+        }
+
+        /** {@inheritDoc} */
+        @Override public void storeByOffset(ByteBuffer buf, int off, CacheSearchRow row) throws IgniteCheckedException {
+            assert row.link() != 0;
+
+            store0(buf, off, row.link(), row.hash());
         }
 
         /** {@inheritDoc} */
@@ -1585,6 +1611,15 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         }
 
         /** {@inheritDoc} */
+        @Override public void storeByOffset(ByteBuffer buf, int off, PendingRow row) throws IgniteCheckedException {
+            assert row.link != 0;
+            assert row.expireTime != 0;
+
+            buf.putLong(off, row.expireTime);
+            buf.putLong(off + 8, row.link);
+        }
+
+        /** {@inheritDoc} */
         @Override public void storeByOffset(long pageAddr, int off, PendingRow row) throws IgniteCheckedException {
             assert row.link != 0;
             assert row.expireTime != 0;
@@ -1641,6 +1676,15 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
          */
         PendingEntryLeafIO(int ver) {
             super(T_PENDING_REF_LEAF, ver, 8 + 8);
+        }
+
+        /** {@inheritDoc} */
+        @Override public void storeByOffset(ByteBuffer buf, int off, PendingRow row) throws IgniteCheckedException {
+            assert row.link != 0;
+            assert row.expireTime != 0;
+
+            buf.putLong(off, row.expireTime);
+            buf.putLong(off + 8, row.link);
         }
 
         /** {@inheritDoc} */

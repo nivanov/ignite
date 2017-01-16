@@ -17,7 +17,9 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
+import java.nio.ByteBuffer;
 import org.apache.ignite.internal.pagemem.PageUtils;
+import org.jetbrains.annotations.NotNull;
 
 /**
  *
@@ -182,6 +184,13 @@ public class PageMetaIO extends PageIO {
      */
     public void setLastAllocatedIndex(long pageAddr, int lastAllocatedIdx) {
         PageUtils.putInt(pageAddr, LAST_ALLOCATED_INDEX_OFF, lastAllocatedIdx);
+    }
+
+    /**
+     * @param buf Buffer.
+     */
+    public int getLastAllocatedIndex(@NotNull ByteBuffer buf) {
+        return buf.getInt(LAST_ALLOCATED_INDEX_OFF);
     }
 
     /**

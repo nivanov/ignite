@@ -17,8 +17,10 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
+import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
+import org.apache.ignite.internal.pagemem.PageMemory;
 import org.apache.ignite.internal.pagemem.PageUtils;
 import org.apache.ignite.internal.pagemem.wal.IgniteWriteAheadLogManager;
 import org.apache.ignite.internal.processors.cache.IgniteCacheOffheapManagerImpl;
@@ -58,7 +60,7 @@ import org.apache.ignite.internal.processors.cache.database.tree.util.PageLockLi
  *
  * 7. It is almost always preferable to read or write (especially write) page contents using
  *    static methods on {@link PageHandler}. To just initialize new page use
- *    {@link PageHandler#initPage(Page, PageLockListener, PageIO, IgniteWriteAheadLogManager)}
+ *    {@link PageHandler#initPage(PageMemory, Page, PageLockListener, PageIO, IgniteWriteAheadLogManager)}
  *    method with needed IO instance.
  */
 public abstract class PageIO {
@@ -164,6 +166,14 @@ public abstract class PageIO {
     }
 
     /**
+     * @param buf Buffer.
+     * @return Page type.
+     */
+    public static int getType(ByteBuffer buf) {
+        return buf.getShort(TYPE_OFF) & 0xFFFF;
+    }
+
+    /**
      * @param pageAddr Page addres.
      * @return Page type.
      */
@@ -182,6 +192,14 @@ public abstract class PageIO {
     }
 
     /**
+     * @param buf Buffer.
+     * @return Version.
+     */
+    public static int getVersion(ByteBuffer buf) {
+        return buf.getShort(VER_OFF) & 0xFFFF;
+    }
+
+    /**
      * @param pageAddr Page address.
      * @return Version.
      */
@@ -197,6 +215,14 @@ public abstract class PageIO {
         PageUtils.putShort(pageAddr, VER_OFF, (short)ver);
 
         assert getVersion(pageAddr) == ver;
+    }
+
+    /**
+     * @param buf Buffer.
+     * @return Page ID.
+     */
+    public static long getPageId(ByteBuffer buf) {
+        return buf.getLong(PAGE_ID_OFF);
     }
 
     /**
@@ -231,6 +257,22 @@ public abstract class PageIO {
      */
     public static void setCrc(long pageAddr, int crc) {
         PageUtils.putInt(pageAddr, CRC_OFF, crc);
+    }
+
+    /**
+     * @param buf Buffer.
+     * @return Checksum.
+     */
+    public static int getCrc(ByteBuffer buf) {
+        return buf.getInt(CRC_OFF);
+    }
+
+    /**
+     * @param buf Buffer.
+     * @param crc Checksum.
+     */
+    public static void setCrc(ByteBuffer buf, int crc) {
+        buf.putInt(CRC_OFF, crc);
     }
 
     /**
