@@ -17,8 +17,6 @@
 
 package org.apache.ignite.internal.pagemem;
 
-import java.nio.ByteBuffer;
-
 /**
  *
  */
@@ -46,11 +44,6 @@ public interface Page extends AutoCloseable {
      * Releases reserved page. Released page can be evicted from RAM after flushing modifications to disk.
      */
     public void releaseRead();
-
-    /**
-     * @return ByteBuffer for modifying the page.
-     */
-    public ByteBuffer getForWrite();
 
     /**
      * @return ByteBuffer for modifying the page.
