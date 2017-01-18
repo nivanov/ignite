@@ -78,7 +78,7 @@ public class H2TreeIndex extends GridH2IndexBase {
 
         name = BPlusTree.treeName(name, "H2Tree");
 
-        if (!cctx.kernalContext().clientNode()) {
+        if (cctx.affinityNode()) {
             IgniteCacheDatabaseSharedManager dbMgr = cctx.shared().database();
 
             RootPage page = cctx.offheap().rootPageForIndex(name);

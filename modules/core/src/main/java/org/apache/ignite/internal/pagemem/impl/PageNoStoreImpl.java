@@ -23,8 +23,6 @@ import org.apache.ignite.internal.pagemem.PageIdUtils;
 import org.apache.ignite.internal.processors.cache.database.tree.io.PageIO;
 import org.apache.ignite.internal.util.typedef.internal.SB;
 
-import java.nio.ByteBuffer;
-
 /**
  *
  */
@@ -36,21 +34,17 @@ public class PageNoStoreImpl implements Page {
     private long pageId;
 
     /** */
-    private int cacheId;
-
-    /** */
     private PageMemoryNoStoreImpl pageMem;
 
     /**
+     * @param pageMem Page memory.
      * @param absPtr Absolute pointer.
+     * @param pageId Page ID.
      */
-    PageNoStoreImpl(
-        PageMemoryNoStoreImpl pageMem, long absPtr, int cacheId, long pageId
-    ) {
+    PageNoStoreImpl(PageMemoryNoStoreImpl pageMem, long absPtr, long pageId) {
         this.pageMem = pageMem;
         this.absPtr = absPtr;
 
-        this.cacheId = cacheId;
         this.pageId = pageId;
     }
 
@@ -68,7 +62,7 @@ public class PageNoStoreImpl implements Page {
 
     /** {@inheritDoc} */
     @Override public FullPageId fullId() {
-        return new FullPageId(pageId, cacheId);
+        throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
@@ -82,11 +76,6 @@ public class PageNoStoreImpl implements Page {
     /** {@inheritDoc} */
     @Override public void releaseRead() {
         pageMem.readUnlockPage(absPtr);
-    }
-
-    /** {@inheritDoc} */
-    @Override public ByteBuffer getForWrite() {
-        throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
@@ -142,7 +131,6 @@ public class PageNoStoreImpl implements Page {
         SB sb = new SB("PageNoStoreImpl [absPtr=0x");
 
         sb.appendHex(absPtr);
-        sb.a(", cacheId=").a(cacheId);
         sb.a(", pageId=0x").appendHex(pageId);
         sb.a("]");
 

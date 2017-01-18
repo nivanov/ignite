@@ -17,6 +17,7 @@
 
 package org.apache.ignite.internal.processors.database;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1228,7 +1229,7 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
 
             PageIO.registerTest(latestInnerIO(), latestLeafIO());
 
-            initNew();
+            initTree(true);
         }
 
         /** {@inheritDoc} */
@@ -1415,6 +1416,11 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
         }
 
         /** {@inheritDoc} */
+        @Override public void storeByOffset(ByteBuffer buf, int off, Long row) throws IgniteCheckedException {
+            throw new UnsupportedOperationException();
+        }
+
+        /** {@inheritDoc} */
         @Override public void storeByOffset(long pageAddr, int off, Long row) {
             checkNotRemoved(row);
 
@@ -1471,6 +1477,11 @@ public class BPlusTreeSelfTest extends GridCommonAbstractTest {
                 return MAX_PER_PAGE;
 
             return super.getMaxCount(pageAddr, pageSize);
+        }
+
+        /** {@inheritDoc} */
+        @Override public void storeByOffset(ByteBuffer buf, int off, Long row) throws IgniteCheckedException {
+            throw new UnsupportedOperationException();
         }
 
         /** {@inheritDoc} */

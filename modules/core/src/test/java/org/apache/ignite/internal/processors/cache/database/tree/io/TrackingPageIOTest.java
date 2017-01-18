@@ -18,6 +18,7 @@
 package org.apache.ignite.internal.processors.cache.database.tree.io;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -26,9 +27,6 @@ import java.util.TreeSet;
 import java.util.concurrent.ThreadLocalRandom;
 import junit.framework.TestCase;
 import org.apache.ignite.internal.util.GridUnsafe;
-import sun.misc.JavaNioAccess;
-import sun.misc.SharedSecrets;
-import sun.nio.ch.DirectBuffer;
 
 /**
  *
@@ -40,26 +38,13 @@ public class TrackingPageIOTest extends TestCase {
     /** */
     private final TrackingPageIO io = TrackingPageIO.VERSIONS.latest();
 
-    /** */
-    private long buf;
-
-    @Override protected void setUp() throws Exception {
-        super.setUp();
-
-        buf = GridUnsafe.allocateMemory(PAGE_SIZE);
-    }
-
-    @Override protected void tearDown() throws Exception {
-        if (buf != 0L)
-            GridUnsafe.freeMemory(buf);
-
-        super.tearDown();
-    }
-
     /**
      *
      */
     public void testBasics() {
+        ByteBuffer buf = ByteBuffer.allocateDirect(PAGE_SIZE);
+        buf.order(ByteOrder.nativeOrder());
+
         io.markChanged(buf, 2, 0, -1, PAGE_SIZE);
 
         assertTrue(io.wasChanged(buf, 2, 0, -1, PAGE_SIZE));
@@ -69,18 +54,13 @@ public class TrackingPageIOTest extends TestCase {
         assertFalse(io.wasChanged(buf, 2, 1,  0, PAGE_SIZE));
     }
 
-    private long allocate() {
-        return GridUnsafe.allocateMemory(PAGE_SIZE);
-    }
-
-    private void free(long addr) {
-        GridUnsafe.freeMemory(addr);
-    }
-
     /**
      *
      */
     public void testMarkingRandomly() {
+        ByteBuffer buf = ByteBuffer.allocateDirect(PAGE_SIZE);
+        buf.order(ByteOrder.nativeOrder());
+
         int cntOfPageToTrack = io.countOfPageToTrack(PAGE_SIZE);
 
         for (int i = 0; i < 1001; i++)
@@ -91,6 +71,9 @@ public class TrackingPageIOTest extends TestCase {
      *
      */
     public void testZeroingRandomly() {
+        ByteBuffer buf = ByteBuffer.allocateDirect(PAGE_SIZE);
+        buf.order(ByteOrder.nativeOrder());
+
         for (int i = 0; i < 1001; i++)
             checkMarkingRandomly(buf, i, true);
     }
@@ -99,7 +82,7 @@ public class TrackingPageIOTest extends TestCase {
      * @param buf Buffer.
      * @param backupId Backup id.
      */
-    private void checkMarkingRandomly(long buf, int backupId, boolean testZeroing) {
+    private void checkMarkingRandomly(ByteBuffer buf, int backupId, boolean testZeroing) {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 
         int track = io.countOfPageToTrack(PAGE_SIZE);
@@ -110,7 +93,7 @@ public class TrackingPageIOTest extends TestCase {
 
         assert basePageId >= 0;
 
-        PageIO.setPageId(buf, basePageId);
+        PageIO.setPageId(GridUnsafe.bufferAddress(buf), basePageId);
 
         Map<Long, Boolean> map = new HashMap<>();
 
@@ -145,7 +128,13 @@ public class TrackingPageIOTest extends TestCase {
         }
     }
 
+    /**
+     * @throws Exception If failed.
+     */
     public void testFindNextChangedPage() throws Exception {
+        ByteBuffer buf = ByteBuffer.allocateDirect(PAGE_SIZE);
+        buf.order(ByteOrder.nativeOrder());
+
         for (int i = 0; i < 101; i++)
             checkFindingRandomly(buf, i);
     }
@@ -154,7 +143,7 @@ public class TrackingPageIOTest extends TestCase {
      * @param buf Buffer.
      * @param backupId Backup id.
      */
-    private void checkFindingRandomly(long buf, int backupId) {
+    private void checkFindingRandomly(ByteBuffer buf, int backupId) {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 
         int track = io.countOfPageToTrack(PAGE_SIZE);
@@ -165,7 +154,7 @@ public class TrackingPageIOTest extends TestCase {
 
         assert basePageId >= 0;
 
-        PageIO.setPageId(buf, basePageId);
+        PageIO.setPageId(GridUnsafe.bufferAddress(buf), basePageId);
 
         try {
             TreeSet<Long> setIdx = new TreeSet<>();
@@ -195,7 +184,13 @@ public class TrackingPageIOTest extends TestCase {
         }
     }
 
+    /**
+     *
+     */
     public void testMerging() {
+        ByteBuffer buf = ByteBuffer.allocateDirect(PAGE_SIZE);
+        buf.order(ByteOrder.nativeOrder());
+
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 
         int track = io.countOfPageToTrack(PAGE_SIZE);
@@ -204,7 +199,7 @@ public class TrackingPageIOTest extends TestCase {
 
         assert basePageId >= 0;
 
-        PageIO.setPageId(buf, basePageId);
+        PageIO.setPageId(GridUnsafe.bufferAddress(buf), basePageId);
 
         TreeSet<Long> setIdx = new TreeSet<>();
 
@@ -228,7 +223,13 @@ public class TrackingPageIOTest extends TestCase {
             assertFalse(io.wasChanged(buf, i, 5, 4, PAGE_SIZE));
     }
 
+    /**
+     *
+     */
     public void testMerging_MarksShouldBeDropForSuccessfulBackup() {
+        ByteBuffer buf = ByteBuffer.allocateDirect(PAGE_SIZE);
+        buf.order(ByteOrder.nativeOrder());
+
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 
         int track = io.countOfPageToTrack(PAGE_SIZE);
@@ -237,7 +238,7 @@ public class TrackingPageIOTest extends TestCase {
 
         assert basePageId >= 0;
 
-        PageIO.setPageId(buf, basePageId);
+        PageIO.setPageId(GridUnsafe.bufferAddress(buf), basePageId);
 
         TreeSet<Long> setIdx = new TreeSet<>();
 
@@ -260,7 +261,7 @@ public class TrackingPageIOTest extends TestCase {
     }
 
     private void generateMarking(
-        long buf,
+        ByteBuffer buf,
         int track,
         long basePageId,
         long maxPageId,

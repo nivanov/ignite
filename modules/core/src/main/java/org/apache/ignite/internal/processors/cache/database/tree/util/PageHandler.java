@@ -17,6 +17,7 @@
 
 package org.apache.ignite.internal.processors.cache.database.tree.util;
 
+import java.nio.ByteBuffer;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.internal.pagemem.Page;
 import org.apache.ignite.internal.pagemem.PageMemory;
@@ -283,6 +284,41 @@ public abstract class PageHandler<X, R> {
         // In both cases we have to write full page contents to WAL.
         return wal != null && !wal.isAlwaysWriteFullPages() && page.fullPageWalRecordPolicy() != TRUE &&
             (page.fullPageWalRecordPolicy() == FALSE || page.isDirty());
+    }
+
+    /**
+     * @param src Source.
+     * @param dst Destination.
+     * @param srcOff Source offset in bytes.
+     * @param dstOff Destination offset in bytes.
+     * @param cnt Bytes count to copy.
+     */
+    public static void copyMemory(ByteBuffer src, ByteBuffer dst, long srcOff, long dstOff, long cnt) {
+        byte[] srcArr = src.hasArray() ? src.array() : null;
+        byte[] dstArr = dst.hasArray() ? dst.array() : null;
+        long srcArrOff = src.hasArray() ? src.arrayOffset() + GridUnsafe.BYTE_ARR_OFF : 0;
+        long dstArrOff = dst.hasArray() ? dst.arrayOffset() + GridUnsafe.BYTE_ARR_OFF : 0;
+
+        long srcPtr = src.isDirect() ? GridUnsafe.bufferAddress(src) : 0;
+        long dstPtr = dst.isDirect() ? GridUnsafe.bufferAddress(dst) : 0;
+
+        GridUnsafe.copyMemory(srcArr, srcPtr + srcArrOff + srcOff, dstArr, dstPtr + dstArrOff + dstOff, cnt);
+    }
+
+    /**
+     * Will zero memory in buf
+     * @param buf Buffer.
+     * @param off Offset.
+     * @param len Length.
+     */
+    public static void zeroMemory(ByteBuffer buf, int off, int len) {
+        if (buf.isDirect())
+            GridUnsafe.setMemory(GridUnsafe.bufferAddress(buf) + off, len, (byte)0);
+
+        else {
+            for (int i = off; i < off + len; i++)
+                buf.put(i, (byte)0); //TODO Optimize!
+        }
     }
 
     /**

@@ -2181,7 +2181,7 @@ public abstract class GridCacheAdapter<K, V> implements IgniteInternalCache<K, V
                         ctx.evicts().touch(peekEx(key0), topVer);
                 }
 
-                throw e;
+                return new GridFinishedFuture<>(e);
             }
             catch (IgniteCheckedException e) {
                 return new GridFinishedFuture<>(e);
@@ -2686,7 +2686,10 @@ public abstract class GridCacheAdapter<K, V> implements IgniteInternalCache<K, V
             }
 
             @Override public String toString() {
-                return "putxAsync [key=" + key + ", val=" + val + ", filter=" + filter + ']';
+                return S.toString("putxAsync",
+                    "key", key, true,
+                    "val", val, true,
+                    "filter", filter, false);
             }
         });
     }
