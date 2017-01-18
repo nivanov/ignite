@@ -106,9 +106,6 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
     private final long metaPageId;
 
     /** */
-    private volatile TreeMetaData treeMeta;
-
-    /** */
     private final boolean canGetRowFromInner;
 
     /** */
@@ -119,6 +116,9 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
     /** */
     private final AtomicLong globalRmvId;
+
+    /** */
+    private volatile TreeMetaData treeMeta;
 
     /** */
     private final GridTreePrinter<Long> treePrinter = new GridTreePrinter<Long>() {
@@ -674,6 +674,8 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
                 assert res == TRUE: res;
             }
+
+            assert treeMeta != null;
         }
     }
 
