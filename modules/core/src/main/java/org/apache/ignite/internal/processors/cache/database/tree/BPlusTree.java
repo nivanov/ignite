@@ -121,6 +121,9 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
     private final AtomicLong globalRmvId;
 
     /** */
+    private volatile TreeMetaData treeMeta;
+
+    /** */
     private final GridTreePrinter<Long> treePrinter = new GridTreePrinter<Long>() {
         /** */
         private boolean keys = true;
