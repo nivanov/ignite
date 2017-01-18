@@ -106,9 +106,6 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
     private final long metaPageId;
 
     /** */
-    private volatile TreeMetaData treeMeta;
-
-    /** */
     private final boolean canGetRowFromInner;
 
     /** */
