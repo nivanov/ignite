@@ -675,33 +675,46 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
                 assert res == TRUE: res;
             }
         }
-        else {
-            try (Page meta = page(metaPageId)) {
-                long pageAddr = readLock(meta); // Meta can't be removed.
+    }
 
-                assert pageAddr != 0 : "Failed to read lock meta page [page=" + meta + ", metaPageId=" +
-                    U.hexLong(metaPageId) + ']';
+    /**
+     * @return Tree meta data.
+     * @throws IgniteCheckedException If failed.
+     */
+    private TreeMetaData treeMeta() throws IgniteCheckedException {
+        TreeMetaData meta0 = treeMeta;
 
-                try {
-                    BPlusMetaIO io = BPlusMetaIO.VERSIONS.forPage(pageAddr);
+        if (meta0 != null)
+            return meta0;
 
-                    int rootLvl = io.getRootLevel(pageAddr);
-                    long rootId = io.getFirstPageId(pageAddr, rootLvl);
+        try (Page meta = page(metaPageId)) {
+            long pageAddr = readLock(meta); // Meta can't be removed.
 
-                    treeMeta = new TreeMetaData(rootLvl, rootId);
-                }
-                finally {
-                    readUnlock(meta, pageAddr);
-                }
+            assert pageAddr != 0 : "Failed to read lock meta page [page=" + meta + ", metaPageId=" +
+                U.hexLong(metaPageId) + ']';
+
+            try {
+                BPlusMetaIO io = BPlusMetaIO.VERSIONS.forPage(pageAddr);
+
+                int rootLvl = io.getRootLevel(pageAddr);
+                long rootId = io.getFirstPageId(pageAddr, rootLvl);
+
+                treeMeta = meta0 = new TreeMetaData(rootLvl, rootId);
+            }
+            finally {
+                readUnlock(meta, pageAddr);
             }
         }
+
+        return meta0;
     }
 
     /**
      * @return Root level.
+     * @throws IgniteCheckedException If failed.
      */
-    private int getRootLevel() {
-        TreeMetaData meta0 = treeMeta;
+    private int getRootLevel() throws IgniteCheckedException {
+        TreeMetaData meta0 = treeMeta();
 
         assert meta0 != null;
 
@@ -1956,7 +1969,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
          * @throws IgniteCheckedException If failed.
          */
         final void init() throws IgniteCheckedException {
-            TreeMetaData meta0 = treeMeta;
+            TreeMetaData meta0 = treeMeta();
 
             assert meta0 != null;
 
