@@ -900,7 +900,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
                 assert dataRow.link() != 0 : dataRow;
 
-                Long old = dataTree.put(dataRow, CacheDataTree.linkC);
+                CacheDataRow old = dataTree.put(dataRow);
 
                 if (old == null)
                     storageSize.incrementAndGet();
@@ -910,19 +910,19 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
                     assert qryMgr.enabled();
 
-//                    if (old != null)
-//                        qryMgr.store(key, p, old.value(), old.version(), val, ver, expireTime, dataRow.link());
-//                    else
-//                        qryMgr.store(key, p, null, null, val, ver, expireTime, dataRow.link());
+                    if (old != null)
+                        qryMgr.store(key, p, old.value(), old.version(), val, ver, expireTime, dataRow.link());
+                    else
+                        qryMgr.store(key, p, null, null, val, ver, expireTime, dataRow.link());
                 }
 
                 if (old != null) {
-//                    assert old.link() != 0 : old;
-//
-//                    if (pendingEntries != null && old.expireTime() != 0)
-//                        pendingEntries.remove(new PendingRow(old.expireTime(), old.link()));
+                    assert old.link() != 0 : old;
 
-                    rowStore.removeRow(old);
+                    if (pendingEntries != null && old.expireTime() != 0)
+                        pendingEntries.removex(new PendingRow(old.expireTime(), old.link()));
+
+                    rowStore.removeRow(old.link());
                 }
 
                 if (pendingEntries != null && expireTime != 0)
@@ -948,7 +948,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
                     assert dataRow.link() != 0 : dataRow;
 
                     if (pendingEntries != null && dataRow.expireTime() != 0)
-                        pendingEntries.remove(new PendingRow(dataRow.expireTime(), dataRow.link()));
+                        pendingEntries.removex(new PendingRow(dataRow.expireTime(), dataRow.link()));
 
                     storageSize.decrementAndGet();
 
@@ -1147,13 +1147,6 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
         /** */
         private final GridCacheContext cctx;
 
-        /** */
-        private static final BPlusTree.RowClosure<CacheSearchRow, Long> linkC = new RowClosure<CacheSearchRow, Long>() {
-            @Override public Long oldRow(BPlusIO<CacheSearchRow> io, long pageAddr, int idx) throws IgniteCheckedException {
-                return ((RowLinkIO)io).getLink(pageAddr, idx);
-            }
-        };
-
         /**
          * @param name Tree name.
          * @param reuseList Reuse list.
@@ -1238,11 +1231,14 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
 
                         int len = PageUtils.getInt(addr, 0);
 
-                        int size = Math.min(bytes.length, len);
+                        int lenCmp = Integer.compare(len, bytes.length);
+
+                        if (lenCmp != 0)
+                            return lenCmp;
 
                         addr += 5; // Skip length and type byte.
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < len; i++) {
                             byte b1 = PageUtils.getByte(addr, i);
                             byte b2 = bytes[i];
 
@@ -1250,7 +1246,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
                                 return b1 > b2 ? 1 : -1;
                         }
 
-                        return Integer.compare(len, bytes.length);
+                        return 0;
                     }
                 }
                 finally {
@@ -1265,9 +1261,12 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
             byte[] bytes1 = other.key().valueBytes(cctx.cacheObjectContext());
             byte[] bytes2 = key.valueBytes(cctx.cacheObjectContext());
 
-            int len = Math.min(bytes1.length, bytes2.length);
+            int lenCmp = Integer.compare(bytes1.length, bytes2.length);
 
-            for (int i = 0; i < len; i++) {
+            if (lenCmp != 0)
+                return lenCmp;
+
+            for (int i = 0; i < bytes1.length; i++) {
                 byte b1 = bytes1[i];
                 byte b2 = bytes2[i];
 
@@ -1275,7 +1274,7 @@ public class IgniteCacheOffheapManagerImpl extends GridCacheManagerAdapter imple
                     return b1 > b2 ? 1 : -1;
             }
 
-            return Integer.compare(bytes1.length, bytes2.length);
+            return 0;
         }
     }
 

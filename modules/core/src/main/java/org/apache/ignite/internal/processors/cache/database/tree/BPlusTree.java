@@ -106,6 +106,9 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
     private final long metaPageId;
 
     /** */
+    private volatile TreeMetaData treeMeta;
+
+    /** */
     private final boolean canGetRowFromInner;
 
     /** */
@@ -116,26 +119,6 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
     /** */
     private final AtomicLong globalRmvId;
-
-    /** */
-    private final RowClosure<L, T> oldRowC = new RowClosure<L, T>() {
-        @Override public T oldRow(BPlusIO<L> io, long pageAddr, int idx) throws IgniteCheckedException {
-            return getRow(io, pageAddr, idx);
-        }
-    };
-
-    public RowClosure<L, T> noOldValue() {
-        return (RowClosure)NO_OLD_VAL;
-    }
-
-    private static final BPlusTree.RowClosure<Object, Object> NO_OLD_VAL = new RowClosure<Object, Object>() {
-        @Override public Object oldRow(BPlusIO<Object> io, long pageAddr, int idx) throws IgniteCheckedException {
-            return null;
-        }
-    };
-
-    /** */
-    private volatile TreeMetaData treeMeta;
 
     /** */
     private final GridTreePrinter<Long> treePrinter = new GridTreePrinter<Long>() {
@@ -339,7 +322,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
                 assert p.oldRow == null;
 
                 // Get old row in leaf page to reduce contention at upper level.
-                p.oldRow = p.oldRowC.oldRow(io, pageAddr, idx);
+                p.oldRow = p.needOld ? getRow(io, pageAddr, idx) : (T)Boolean.TRUE;
 
                 p.finish();
 
@@ -1309,13 +1292,12 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
     /**
      * @param row Lookup row.
-     * @param bag Reuse bag.
      * @return Removed row.
      * @throws IgniteCheckedException If failed.
      */
     @SuppressWarnings("unused")
-    public final T removeCeil(L row, ReuseBag bag) throws IgniteCheckedException {
-        return doRemove(row, true, bag);
+    public final T removeCeil(L row) throws IgniteCheckedException {
+        return doRemove(row, true, true);
     }
 
     /**
@@ -1324,20 +1306,31 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
      * @throws IgniteCheckedException If failed.
      */
     @Override public final T remove(L row) throws IgniteCheckedException {
-        return doRemove(row, false, null);
+        return doRemove(row, false, true);
+    }
+
+    /**
+     * @param row Lookup row.
+     * @throws IgniteCheckedException If failed.
+     * @return {@code True} if removed row.
+     */
+    public final boolean removex(L row) throws IgniteCheckedException {
+        Boolean res = (Boolean)doRemove(row, false, false);
+
+        return res != null ? res : false;
     }
 
     /**
      * @param row Lookup row.
      * @param ceil If we can remove ceil row when we can not find exact.
-     * @param bag Reuse bag.
+     * @param needOld {@code True} if need return removed row.
      * @return Removed row.
      * @throws IgniteCheckedException If failed.
      */
-    private T doRemove(L row, boolean ceil, ReuseBag bag) throws IgniteCheckedException {
+    private T doRemove(L row, boolean ceil, boolean needOld) throws IgniteCheckedException {
         checkDestroyed();
 
-        Remove r = new Remove(row, ceil, bag);
+        Remove r = new Remove(row, ceil, needOld);
 
         try {
             for (;;) {
@@ -1372,7 +1365,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
 
                         assert r.isFinished();
 
-                        return r.removed;
+                        return r.rmvd;
                 }
             }
         }
@@ -1581,32 +1574,30 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
      * {@inheritDoc}
      */
     @Override public final T put(T row) throws IgniteCheckedException {
-        return put(row, (ReuseBag)null);
-    }
-
-    public void putx(T row) throws IgniteCheckedException {
-        put(row, noOldValue());
-    }
-
-    public final <R> R put(T row, RowClosure<L, R> c) throws IgniteCheckedException {
-        Put p = new Put(row, null, c);
-
-        return (R)put0(p);
-    }
-
-    public final T put(T row, ReuseBag bag) throws IgniteCheckedException {
-        Put p = new Put(row, bag, oldRowC);
-
-        return (T)put0(p);
+        return put(row, true);
     }
 
     /**
-     * @param p Put operation.
+     * @param row New value.
+     * @throws IgniteCheckedException If failed.
+     * @return {@code True} if replaced existing row.
+     */
+    public boolean putx(T row) throws IgniteCheckedException {
+        Boolean res = (Boolean)put(row, false);
+
+        return res != null ? res : false;
+    }
+
+    /**
+     * @param row New value.
+     * @param needOld {@code True} If need return old value.
      * @return Old row.
      * @throws IgniteCheckedException If failed.
      */
-    private Object put0(Put p) throws IgniteCheckedException {
+    private T put(T row, boolean needOld) throws IgniteCheckedException {
         checkDestroyed();
+
+        Put p = new Put(row, needOld);
 
         try {
             for (;;) { // Go down with retries.
@@ -1642,13 +1633,13 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
             }
         }
         catch (IgniteCheckedException e) {
-            throw new IgniteCheckedException("Runtime failure on row: " + p.row, e);
+            throw new IgniteCheckedException("Runtime failure on row: " + row, e);
         }
         catch (RuntimeException e) {
-            throw new IgniteException("Runtime failure on row: " + p.row, e);
+            throw new IgniteException("Runtime failure on row: " + row, e);
         }
         catch (AssertionError e) {
-            throw new AssertionError("Assertion error on row: " + p.row, e);
+            throw new AssertionError("Assertion error on row: " + row, e);
         }
     }
 
@@ -2125,7 +2116,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         private long rightId;
 
         /** Replaced row if any. */
-        private Object oldRow;
+        private T oldRow;
 
         /**
          * This page is kept locked after split until insert to the upper level will not be finished.
@@ -2146,20 +2137,16 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         Bool needReplaceInner = FALSE;
 
         /** */
-        private ReuseBag bag;
-
-        /** */
-        private final RowClosure<L, ?> oldRowC;
+        private final boolean needOld;
 
         /**
          * @param row Row.
-         * @param bag Reuse bag.
+         * @param needOld {@code True} If need return old value.
          */
-        private Put(T row, ReuseBag bag, RowClosure<L, ?> oldRowC) {
+        private Put(T row, boolean needOld) {
             super(row);
 
-            this.bag = bag;
-            this.oldRowC = oldRowC;
+            this.needOld = needOld;
         }
 
         /** {@inheritDoc} */
@@ -2268,7 +2255,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
          */
         private L insertWithSplit(Page page, BPlusIO<L> io, final long pageAddr, int idx, int lvl)
             throws IgniteCheckedException {
-            long fwdId = allocatePage(bag);
+            long fwdId = allocatePage(null);
 
             try (Page fwd = page(fwdId)) {
                 // Need to check this before the actual split, because after the split we will have new forward page here.
@@ -2315,7 +2302,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
                     }
 
                     if (!hadFwd && lvl == getRootLevel()) { // We are splitting root.
-                        long newRootId = allocatePage(bag);
+                        long newRootId = allocatePage(null);
 
                         try (Page newRoot = page(newRootId)) {
                             if (io.isLeaf())
@@ -2384,7 +2371,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         Bool needMergeEmptyBranch = FALSE;
 
         /** Removed row. */
-        private T removed;
+        private T rmvd;
 
         /** Current page. */
         private Page page;
@@ -2393,31 +2380,23 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         private Object freePages;
 
         /** */
-        private ReuseBag bag;
+        private final boolean needOld;
 
         /**
          * @param row Row.
          * @param ceil If we can remove ceil row when we can not find exact.
+         * @param needOld {@code True} If need return old value.
          */
-        private Remove(L row, boolean ceil, ReuseBag bag) {
+        private Remove(L row, boolean ceil, boolean needOld) {
             super(row);
 
             this.ceil = ceil;
-            this.bag = bag;
-        }
-
-        /**
-         * @return Reuse bag.
-         */
-        private ReuseBag bag() {
-            return bag != null ? bag : this;
+            this.needOld = needOld;
         }
 
         /** {@inheritDoc} */
         @SuppressWarnings("unchecked")
         @Override public long pollFreePage() {
-            assert bag == null;
-
             if (freePages == null)
                 return 0;
 
@@ -2438,7 +2417,6 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         @SuppressWarnings("unchecked")
         @Override public void addFreePage(long pageId) {
             assert pageId != 0;
-            assert bag == null; // Otherwise we have to add the given pageId to that bag.
 
             if (freePages == null)
                 freePages = pageId;
@@ -2557,7 +2535,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
          * @return {@code true} If already removed from leaf.
          */
         private boolean isRemoved() {
-            return removed != null;
+            return rmvd != null;
         }
 
         /**
@@ -2833,7 +2811,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
             assert !isRemoved(): "already removed";
 
             // Detach the row.
-            removed = getRow(io, pageAddr, idx);
+            rmvd = needOld ? getRow(io, pageAddr, idx) : (T)Boolean.TRUE;
 
             doRemove(page, io, pageAddr, cnt, idx);
 
@@ -3034,7 +3012,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
             if (release)
                 writeUnlockAndClose(page, pageAddr);
 
-            bag().addFreePage(pageId);
+            addFreePage(pageId);
         }
 
         /**
@@ -3055,7 +3033,7 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
         @SuppressWarnings("unchecked")
         private void reuseFreePages() throws IgniteCheckedException {
             // If we have a bag, then it will be processed at the upper level.
-            if (reuseList != null && bag == null && freePages != null)
+            if (reuseList != null && freePages != null)
                 reuseList.addForRecycle(this);
         }
 
@@ -3497,13 +3475,6 @@ public abstract class BPlusTree<L, T extends L> extends DataStructure implements
      * @throws IgniteCheckedException If failed.
      */
     protected abstract T getRow(BPlusIO<L> io, long pageAddr, int idx) throws IgniteCheckedException;
-
-    /**
-     *
-     */
-    public interface RowClosure<L, R> {
-        public R oldRow(BPlusIO<L> io, long pageAddr, int idx) throws IgniteCheckedException;
-    }
 
     /**
      * Forward cursor.
