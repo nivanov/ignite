@@ -12,6 +12,7 @@ package org.apache.ignite.math.impls.storage.matrix;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.ignite.*;
 import org.apache.ignite.cache.*;
+import org.apache.ignite.cluster.ClusterGroup;
 import org.apache.ignite.configuration.*;
 import org.apache.ignite.lang.*;
 import org.apache.ignite.math.*;
@@ -25,6 +26,8 @@ import java.util.*;
 public class SparseDistributedMatrixStorage extends CacheUtils implements MatrixStorage, StorageConstants {
     private int rows, cols;
     private int stoMode, acsMode;
+    private long defElsCount;
+    private Double defEl;
 
     /** Actual distributed storage. */
     private IgniteCache<
@@ -56,6 +59,8 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
         this.cols = cols;
         this.stoMode = stoMode;
         this.acsMode = acsMode;
+        defElsCount = rows * cols;
+        defEl = 0.0;
 
         cache = newCache();
     }
@@ -87,7 +92,9 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
         cfg.setCacheMode(CacheMode.PARTITIONED);
 
         // Random cache name.
-        cfg.setName(new IgniteUuid().shortString());
+        //TODO: check if this fix is ok. This fix we needed because new IgniteUuid().shortString() always gave same string
+//        cfg.setName(new IgniteUuid().shortString());
+        cfg.setName(UUID.randomUUID().toString());
 
         return Ignition.localIgnite().getOrCreateCache(cfg);
     }
@@ -148,7 +155,7 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
             // Local get.
             Map<Integer, Double> map = cache.localPeek(a, CachePeekMode.PRIMARY);
 
-            return (map == null || !map.containsKey(b)) ? 0.0 : map.get(b);
+            return (map == null || !map.containsKey(b)) ? defEl : map.get(b);
         });
     }
 
@@ -162,7 +169,9 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
      */
     private void matrixSet(String cacheName, int a, int b, double v) {
         // Remote set on the primary node (where given row or column is stored locally).
-        ignite().compute(groupForKey(cacheName, a)).run(() -> {
+        defElsCount += ignite().compute(groupForKey(cacheName, a)).call(() -> {
+            int increment = 0;
+
             IgniteCache<Integer, Map<Integer, Double>> cache = Ignition.localIgnite().getOrCreateCache(cacheName);
 
             // Local get.
@@ -171,13 +180,19 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
             if (map == null)
                 map = acsMode == SEQUENTIAL_ACCESS_MODE ? new Int2DoubleRBTreeMap() : new Int2DoubleOpenHashMap();
 
-            if (v != 0.0)
-                map.put(b, v);
-            else if (map.containsKey(b))
+            if (v != defEl) {
+                Double prev = map.put(b, v);
+                if (prev == null)
+                    increment = -1;
+            }
+            else if (map.containsKey(b)) {
                 map.remove(b);
+                increment = 1;
+            }
 
             // Local put.
             cache.put(a, map);
+            return increment;
         });
     }
 
@@ -198,6 +213,8 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
         out.writeInt(acsMode);
         out.writeInt(stoMode);
         out.writeUTF(cache.getName());
+        out.writeDouble(defEl);
+        out.writeLong(defElsCount);
     }
 
     /** {@inheritDoc} */
@@ -207,6 +224,8 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
         acsMode = in.readInt();
         stoMode = in.readInt();
         cache = ignite().getOrCreateCache(in.readUTF());
+        defEl = in.readDouble();
+        defElsCount = in.readLong();
     }
 
     /** {@inheritDoc} */
@@ -248,6 +267,8 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
         res = res * 37 + acsMode;
         res = res * 37 + stoMode;
         res = res * 37 + cache.hashCode();
+        res = (int)(res * 37 + defEl);
+        res = (int)(res * 37 + defElsCount);
 
         return res;
     }
@@ -263,6 +284,53 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
         SparseDistributedMatrixStorage that = (SparseDistributedMatrixStorage) obj;
 
         return rows == that.rows && cols == that.cols && acsMode == that.acsMode && stoMode == that.stoMode
-            && (cache != null ? cache.equals(that.cache) : that.cache == null);
+            && (cache != null ? cache.equals(that.cache) : that.cache == null)
+            && (defEl != null ? defEl.equals(that.defEl) : that.defEl== null)
+            && (defElsCount == that.defElsCount);
+    }
+
+    /** */
+    public boolean isFull() {
+        return defElsCount == 0;
+    }
+
+    /** */
+    public Double getDefaultElement() {
+        return defEl;
+    }
+
+    /** */
+    public void setDefaultElement(Double defEl) {
+        this.defEl = defEl;
+        defElsCount = 0;
+        long nonDefEls = 0;
+        String cacheName = cache().getName();
+
+        for (int i = 0; i < rows; i++) {
+            final int y = i;
+            nonDefEls += ignite().compute(groupForKey(cacheName, i)).call(() -> {
+                IgniteCache<Integer, Map<Integer, Double>> cache = Ignition.localIgnite().getOrCreateCache(cacheName);
+
+                // Local get.
+                Map<Integer, Double> map = cache.localPeek(y, CachePeekMode.PRIMARY);
+
+                if (map == null)
+                    return 0;
+
+                // Count number of non-default elements
+                int res = 0;
+                for (Integer x : map.keySet())
+                    res += map.remove(x, defEl) ? 0 : 1;
+
+                return res;
+            });
+        }
+
+        defElsCount = rows * cols - nonDefEls;
+    }
+
+    /** */
+    public long getDefElsCount() {
+        return defElsCount;
     }
 }

@@ -26,6 +26,8 @@
 
 package org.apache.ignite.math.impls.matrix;
 
+import java.util.Collections;
+import java.util.Map;
 import org.apache.ignite.math.*;
 import org.apache.ignite.math.exceptions.UnsupportedOperationException;
 import org.apache.ignite.math.functions.*;
@@ -112,7 +114,9 @@ public class SparseDistributedMatrix extends AbstractMatrix implements StorageCo
 
     /** {@inheritDoc} */
     @Override public Matrix map(IgniteDoubleFunction<Double> fun) {
-        return mapOverValues(fun::apply);
+        mapOverValues(fun::apply);
+        storage().setDefaultElement(fun.apply(storage().getDefaultElement()));
+        return this;
     }
 
     /**
@@ -121,6 +125,8 @@ public class SparseDistributedMatrix extends AbstractMatrix implements StorageCo
      *
      */
     private Matrix mapOverValues(IgniteFunction<Double, Double> mapper) {
+        // TODO: make sparseMap carry about not storing default values. I.e. if some value was mapped into default, it
+        // should be removed.
         CacheUtils.sparseMap(storage().cache().getName(), mapper);
 
         return this;
@@ -128,17 +134,23 @@ public class SparseDistributedMatrix extends AbstractMatrix implements StorageCo
 
     /** {@inheritDoc} */
     @Override public double sum() {
-        return CacheUtils.sparseSum(storage().cache().getName());
+        return CacheUtils.sparseSum(storage().cache().getName(), storage().getDefElsCount());
     }
 
     /** {@inheritDoc} */
     @Override public double maxValue() {
-        return CacheUtils.sparseMax(storage().cache().getName());
+        double z = storage().isFull() ? Double.NEGATIVE_INFINITY : storage().getDefaultElement();
+        return CacheUtils.sparseFoldNilpotent(storage().cache().getName(),
+            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) -> Math.max(Collections.max(map.values()), aDouble),
+            Math::max, z);
     }
 
     /** {@inheritDoc} */
     @Override public double minValue() {
-        return CacheUtils.sparseMin(storage().cache().getName());
+        double z = storage().isFull() ? Double.POSITIVE_INFINITY : storage().getDefaultElement();
+        return CacheUtils.sparseFoldNilpotent(storage().cache().getName(),
+            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) -> Math.min(Collections.min(map.values()), aDouble),
+            Math::min, z);
     }
 
     /** {@inheritDoc} */
@@ -154,5 +166,15 @@ public class SparseDistributedMatrix extends AbstractMatrix implements StorageCo
     /** {@inheritDoc} */
     @Override public Vector likeVector(int crd) {
         throw new UnsupportedOperationException();
+    }
+
+    /** */
+    public Double getDefaultElement() {
+        return storage().getDefaultElement();
+    }
+
+    /** */
+    public long getDefaultElementsCount() {
+        return storage().getDefElsCount();
     }
 }

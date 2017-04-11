@@ -182,6 +182,7 @@ public class SparseDistributedMatrixTest extends GridCommonAbstractTest {
         assertEquals(UNEXPECTED_VALUE, 1.0, cacheMatrix.minValue(), PRESITION);
         assertEquals(UNEXPECTED_VALUE, rows * cols, cacheMatrix.maxValue(), PRESITION);
 
+        cacheMatrix.assign(0.0);
         for (int i = 0; i < cacheMatrix.rowSize(); i++)
             for (int j = 0; j < cacheMatrix.columnSize(); j++)
                 cacheMatrix.set(i, j, -1.0 * (i * cols + j + 1));
@@ -193,12 +194,26 @@ public class SparseDistributedMatrixTest extends GridCommonAbstractTest {
             for (int j = 0; j < cacheMatrix.columnSize(); j++)
                 cacheMatrix.set(i, j, i * cols + j);
 
-        assertEquals(UNEXPECTED_VALUE, 1.0, cacheMatrix.minValue(), PRESITION);
+        assertEquals(UNEXPECTED_VALUE, 0.0, cacheMatrix.minValue(), PRESITION);
         assertEquals(UNEXPECTED_VALUE, rows * cols - 1.0, cacheMatrix.maxValue(), PRESITION);
+
+        // Non-full matrix
+        for (int i = 2; i < cacheMatrix.rowSize(); i += 2)
+            for (int j = 2; j < cacheMatrix.columnSize(); j += 2)
+                cacheMatrix.set(i, j, i * cols + j + 1);
+
+        assertEquals(UNEXPECTED_VALUE, 0.0, cacheMatrix.minValue(), PRESITION);
+
+        // Non-full matrix
+        for (int i = 2; i < cacheMatrix.rowSize(); i += 2)
+            for (int j = 2; j < cacheMatrix.columnSize(); j += 2)
+                cacheMatrix.set(i, j, i * cols + j + 1);
     }
 
-    /** */
-    public void testMap(){
+    /**
+     * Tests the 'map' function when operand matrix is full with values
+     */
+    public void testMapFull(){
         IgniteUtils.setCurrentIgniteName(ignite.configuration().getIgniteInstanceName());
 
         cacheMatrix = new SparseDistributedMatrix(rows, cols, StorageConstants.ROW_STORAGE_MODE, StorageConstants.RANDOM_ACCESS_MODE);
@@ -208,6 +223,25 @@ public class SparseDistributedMatrixTest extends GridCommonAbstractTest {
         for (int i = 0; i < cacheMatrix.rowSize(); i++)
             for (int j = 0; j < cacheMatrix.columnSize(); j++)
                 assertEquals(UNEXPECTED_VALUE, 100.0, cacheMatrix.get(i, j), PRESITION);
+    }
+
+    /** */
+    public void testMapSparse() {
+        IgniteUtils.setCurrentIgniteName(ignite.configuration().getIgniteInstanceName());
+
+        cacheMatrix = new SparseDistributedMatrix(rows, cols, StorageConstants.ROW_STORAGE_MODE, StorageConstants.RANDOM_ACCESS_MODE);
+
+        // Set only even indexes.
+        for (int i = 0; i < rows; i += 2)
+            for (int j = 0; j < cols; j += 2)
+                cacheMatrix.set(i, j, 33);
+
+        assertEquals("3/4 of elements should have default value", 3 * rows * cols / 4, cacheMatrix.getDefaultElementsCount());
+        cacheMatrix.map(i -> 100.0);
+
+        // get on odd index should also return mapped value;
+        assertEquals(UNEXPECTED_VALUE, 100, cacheMatrix.get(63, 79), PRESITION);
+        assertEquals("All elements now should have default value", rows * cols, cacheMatrix.getDefaultElementsCount());
     }
 
     /** */

@@ -17,6 +17,7 @@
 
 package org.apache.ignite.math.impls;
 
+import java.util.function.BinaryOperator;
 import org.apache.ignite.*;
 import org.apache.ignite.cache.affinity.*;
 import org.apache.ignite.cache.query.*;
@@ -88,6 +89,15 @@ public class CacheUtils {
     /**
      *
      * @param cacheName
+     * @return
+     */
+    public static ClusterGroup groupForCacheName(String cacheName) {
+        return ignite().cluster().forCacheNodes(cacheName);
+    }
+
+    /**
+     *
+     * @param cacheName
      * @param keyMapper
      * @param valMapper
      * @param <K>
@@ -113,16 +123,12 @@ public class CacheUtils {
      * @param cacheName
      *
      */
-    public static <K, V> double sparseSum(String cacheName) {
-        Collection<Double> subSums = fold(cacheName, (CacheEntry<Integer, Map<Integer, Double>> ce, Double acc) -> {
-            Map<Integer, Double> map = ce.entry().getValue();
-
-            double sum = sum(map.values());
-
+    public static <K, V> double sparseSum(String cacheName, long defValCnt) {
+//        (IgniteBiFunction<Map<Integer, Double>, Double, Double>)
+        return sparseFold(cacheName, (Map<Integer, Double> ce, Double acc) -> {
+            double sum = sum(ce.values());
             return acc == null ? sum : acc + sum;
-        });
-
-        return sum(subSums);
+        }, (aDouble, aDouble2) -> aDouble + aDouble2, 0.0, Collections.singletonMap(1, 0.0), defValCnt);
     }
 
     /**
@@ -334,6 +340,70 @@ public class CacheUtils {
 
             return a;
         });
+    }
+
+    /** */
+    public static <V, A> A sparseFoldNilpotent(String cacheName, IgniteBiFunction<V, A, A> folder,
+        BinaryOperator<A> accumulator, A zeroVal) {
+        return sparseFold(cacheName, folder, accumulator, zeroVal, null, 1, true);
+    }
+
+    /** */
+    public static <V, A> A sparseFold(String cacheName, IgniteBiFunction<V, A, A> folder,
+        BinaryOperator<A> accumulator, A zeroVal, V defVal, long defValCnt) {
+        return sparseFold(cacheName, folder, accumulator, zeroVal, defVal, defValCnt, false);
+    }
+
+    /**
+     *
+     * @param cacheName
+     * @param folder
+     * @param accumulator
+     * @param zeroVal
+     * @param defVal
+     * @param defValCnt
+     * @param isNilpotent flag for nilpotent operators like 'min' or 'max'
+     * @param <K>
+     * @param <V>
+     * @param <A>
+     * @return
+     */
+    private static <K, V, A> A sparseFold(String cacheName, IgniteBiFunction<V, A, A> folder,
+        BinaryOperator<A> accumulator, A zeroVal, V defVal, long defValCnt, boolean isNilpotent) {
+
+        A defRes = zeroVal;
+
+        if (!isNilpotent)
+            for (int i = 0; i < defValCnt; i++)
+                defRes = folder.apply(defVal, defRes);
+
+        Collection<A> totalRes = bcast(cacheName, () -> {
+            Ignite ignite = Ignition.localIgnite();
+            IgniteCache<K, V> cache = ignite.getOrCreateCache(cacheName);
+
+            int partsCnt = ignite.affinity(cacheName).partitions();
+
+            // Use affinity in filter for ScanQuery. Otherwise we accept consumer in each node which is wrong.
+            Affinity affinity = ignite.affinity(cacheName);
+            ClusterNode localNode = ignite.cluster().localNode();
+
+            A a = zeroVal;
+
+            // Iterate over all partitions. Some of them will be stored on that local node.
+            for (int part = 0; part < partsCnt; part++) {
+                int p = part;
+
+                // Iterate over given partition.
+                // Query returns an empty cursor if this partition is not stored on this node.
+                for (Cache.Entry<K, V> entry : cache.query(new ScanQuery<K, V>(part,
+                    (k, v) -> affinity.mapPartitionToNode(p) == localNode)))
+                    a = folder.apply(entry.getValue(), a);
+            }
+
+            return a;
+        });
+        totalRes.add(defRes);
+        return totalRes.stream().reduce(zeroVal, accumulator);
     }
 
     /**
