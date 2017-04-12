@@ -28,6 +28,9 @@ package org.apache.ignite.math.impls.matrix;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
+import java.util.stream.DoubleStream;
 import org.apache.ignite.math.*;
 import org.apache.ignite.math.exceptions.UnsupportedOperationException;
 import org.apache.ignite.math.functions.*;
@@ -134,14 +137,19 @@ public class SparseDistributedMatrix extends AbstractMatrix implements StorageCo
 
     /** {@inheritDoc} */
     @Override public double sum() {
-        return CacheUtils.sparseSum(storage().cache().getName(), storage().getDefElsCount());
+        return CacheUtils.sparseFold(storage().cache().getName(),
+            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) ->
+                map.values().stream().mapToDouble(value -> value).sum() + aDouble,
+            (aDouble, aDouble2) -> aDouble + aDouble2, 0.0, Collections.singletonMap(1, getDefaultElement()),
+            getDefaultElementsCount());
     }
 
     /** {@inheritDoc} */
     @Override public double maxValue() {
         double z = storage().isFull() ? Double.NEGATIVE_INFINITY : storage().getDefaultElement();
         return CacheUtils.sparseFoldNilpotent(storage().cache().getName(),
-            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) -> Math.max(Collections.max(map.values()), aDouble),
+            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) ->
+                Math.max(Collections.max(map.values()), aDouble),
             Math::max, z);
     }
 
@@ -149,7 +157,8 @@ public class SparseDistributedMatrix extends AbstractMatrix implements StorageCo
     @Override public double minValue() {
         double z = storage().isFull() ? Double.POSITIVE_INFINITY : storage().getDefaultElement();
         return CacheUtils.sparseFoldNilpotent(storage().cache().getName(),
-            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) -> Math.min(Collections.min(map.values()), aDouble),
+            (IgniteBiFunction<Map<Integer, Double>, Double, Double>)(map, aDouble) ->
+                Math.min(Collections.min(map.values()), aDouble),
             Math::min, z);
     }
 
