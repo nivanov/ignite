@@ -302,7 +302,6 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
     /** */
     public void setDefaultElement(Double defEl) {
         this.defEl = defEl;
-        defElsCount = 0;
         long nonDefEls = 0;
         String cacheName = cache().getName();
 
@@ -319,14 +318,21 @@ public class SparseDistributedMatrixStorage extends CacheUtils implements Matrix
 
                 // Count number of non-default elements
                 int res = 0;
-                for (Integer x : map.keySet())
-                    res += map.remove(x, defEl) ? 0 : 1;
+                Iterator<Map.Entry<Integer, Double>> iter = map.entrySet().iterator();
+
+                while (iter.hasNext()) {
+                    Map.Entry<Integer, Double> next = iter.next();
+                    if (next.getValue().equals(defEl)) {
+                        iter.remove();
+                        res += 1;
+                    }
+                }
 
                 return res;
             });
         }
 
-        defElsCount = rows * cols - nonDefEls;
+        defElsCount += nonDefEls;
     }
 
     /** */

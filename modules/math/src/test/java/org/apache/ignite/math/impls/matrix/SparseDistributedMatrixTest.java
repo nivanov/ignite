@@ -26,11 +26,15 @@
 
 package org.apache.ignite.math.impls.matrix;
 
+import it.unimi.dsi.fastutil.ints.Int2DoubleOpenCustomHashMap;
+import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import org.apache.ignite.Ignite;
@@ -213,7 +217,7 @@ public class SparseDistributedMatrixTest extends GridCommonAbstractTest {
     /**
      * Tests the 'map' function when operand matrix is full with values
      */
-    public void testMapFull(){
+    public void testMapFull() {
         IgniteUtils.setCurrentIgniteName(ignite.configuration().getIgniteInstanceName());
 
         cacheMatrix = new SparseDistributedMatrix(rows, cols, StorageConstants.ROW_STORAGE_MODE, StorageConstants.RANDOM_ACCESS_MODE);
@@ -232,9 +236,7 @@ public class SparseDistributedMatrixTest extends GridCommonAbstractTest {
         cacheMatrix = new SparseDistributedMatrix(rows, cols, StorageConstants.ROW_STORAGE_MODE, StorageConstants.RANDOM_ACCESS_MODE);
 
         // Set only even indexes.
-        for (int i = 0; i < rows; i += 2)
-            for (int j = 0; j < cols; j += 2)
-                cacheMatrix.set(i, j, 33);
+        setEven(cacheMatrix, (integer, integer2) -> 33.0);
 
         assertEquals("3/4 of elements should have default value", 3 * rows * cols / 4, cacheMatrix.getDefaultElementsCount());
         cacheMatrix.map(i -> 100.0);
@@ -294,5 +296,12 @@ public class SparseDistributedMatrixTest extends GridCommonAbstractTest {
         for (int i = 0; i < m.rowSize(); i++)
             for (int j = 0; j < m.columnSize(); j++)
                 m.set(i, j, 1.0);
+    }
+
+    private void setEven(Matrix m, BiFunction<Integer, Integer, Double> f) {
+        for (int i = 0; i < rows; i+=2)
+            for (int j = 0; j < cols; j+=2)
+                m.set(i, j, f.apply(i, j));
+
     }
 }
